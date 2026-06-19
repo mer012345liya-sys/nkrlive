@@ -1,0 +1,20 @@
+{
+  "name": "nkr-live",
+  "version": "2.1.0",
+  "description": "NKRlive v2.1.0 - NKR Match Day Tracker with live Playing XI, batting/bowling/fielding stats and 12-hour post-match performance window",
+  "main": "server.js",
+  "private": true,
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "node-fetch": "^2.7.0",
+    "ws": "^8.17.0",
+    "xml2js": "^0.6.2"
+  },
+  "license": "UNLICENSED"
+}
