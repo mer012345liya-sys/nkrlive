@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="NKRlive — live civic dashboard for Visakhapatnam with local time, weather, city news and a dedicated Nitish Kumar Reddy tracker.">
+<title>NKRlive — Visakhapatnam Dashboard</title>
+<link rel="icon" href="assets/nkr-logo.png" type="image/png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+<style>
+  .masthead{ text-align:center; padding:30px 0 8px; }
+  .masthead .brand{
+    font-family:var(--font-display); font-weight:600; font-size:clamp(34px,7vw,52px);
+    letter-spacing:.005em;
+  }
+  .masthead .brand .accent{ color:var(--brass); }
+  .masthead .tagline{ color:var(--ink-dim); font-size:13.5px; margin-top:10px; letter-spacing:.01em; }
+
+  /* ── BREAKING NEWS TICKER ──────────────────────────────────────── */
+  .breaking-bar{
+    position:relative; margin-bottom:18px; border-radius:var(--radius-sm);
+    overflow:hidden; border:1px solid var(--line);
+    background:var(--panel); backdrop-filter:blur(8px);
+  }
+  /* top accent line — red like a real news channel */
+  .breaking-bar::before{
+    content:''; position:absolute; top:0; left:0; right:0; height:2.5px;
+    background:linear-gradient(90deg,#e03535 0%,#ff6b35 50%,#e03535 100%);
+    background-size:200% 100%; animation:bar-shimmer 3s linear infinite;
+  }
+  @keyframes bar-shimmer{ 0%{background-position:0 0} 100%{background-position:200% 0} }
+
+  .breaking-inner{ display:flex; align-items:stretch; min-height:44px; }
+
+  /* LEFT: category badge that cycles */
+  .breaking-badge{
+    flex-shrink:0; display:flex; flex-direction:column; align-items:center;
+    justify-content:center; padding:0 14px; min-width:88px;
+    border-right:1px solid var(--line);
+    background:rgba(224,53,53,0.08);
+  }
+  .breaking-badge .b-live{
+    font-family:var(--font-mono); font-size:9px; letter-spacing:.2em;
+    text-transform:uppercase; color:#e03535; font-weight:700;
+    display:flex; align-items:center; gap:4px;
+  }
+  .breaking-badge .b-live::before{
+    content:''; width:6px; height:6px; border-radius:50%; background:#e03535;
+    animation:blink-dot 1.1s ease-in-out infinite;
+  }
+  @keyframes blink-dot{ 0%,100%{opacity:1} 50%{opacity:0.2} }
+  .breaking-badge .b-cat{
+    font-family:var(--font-mono); font-size:9px; letter-spacing:.1em;
+    text-transform:uppercase; color:var(--ink-faint); margin-top:2px;
+  }
+
+  /* MIDDLE: headline crossfade area */
+  .breaking-stage{
+    flex:1; overflow:hidden; position:relative; padding:0 16px;
+    display:flex; align-items:center; min-height:44px;
+  }
+  .breaking-headline{
+    position:absolute; left:16px; right:16px;
+    font-size:13.5px; font-weight:500; line-height:1.35; color:var(--ink);
+    opacity:0; transition:opacity .5s ease;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+  }
+  .breaking-headline.active{ opacity:1; }
+  .breaking-headline a{ color:inherit; text-decoration:none; }
+  .breaking-headline a:hover{ color:var(--teal); text-decoration:underline; }
+  /* NKR stories get a gold tint */
+  .breaking-headline.nkr-story a{ color:var(--brass); }
+  .breaking-headline.nkr-story a:hover{ color:var(--teal); }
+
+  /* RIGHT: index counter */
+  .breaking-counter{
+    flex-shrink:0; padding:0 14px; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; border-left:1px solid var(--line);
+    min-width:52px;
+  }
+  .breaking-counter .b-cur{
+    font-family:var(--font-display); font-size:20px; font-weight:600; color:var(--ink); line-height:1;
+  }
+  .breaking-counter .b-tot{
+    font-family:var(--font-mono); font-size:9px; color:var(--ink-faint); letter-spacing:.08em; margin-top:1px;
+  }
+
+  /* NEW flash — appears on fresh breaking story */
+  .breaking-new-flash{
+    position:absolute; top:6px; right:70px;
+    font-family:var(--font-mono); font-size:9px; letter-spacing:.15em;
+    text-transform:uppercase; color:#fff; background:#e03535;
+    padding:2px 6px; border-radius:3px;
+    opacity:0; transition:opacity .3s;
+    pointer-events:none;
+  }
+  .breaking-new-flash.show{ opacity:1; }
+</style>
+</head>
+<body>
+<div id="toast-container" aria-live="polite" aria-atomic="false"></div>
+
+<nav class="topnav">
+  <div class="topnav-inner">
+    <a class="nav-brand" href="index.html">
+      <img class="mark" src="assets/nkr-logo.png" alt="NKR">
+      NKR<span class="accent">live</span>
+    </a>
+    <div class="nav-links" id="navLinks">
+      <a class="nav-link active" href="index.html">Home</a>
+      <a class="nav-link" href="nkr.html">NKR</a>
+      <a class="nav-link" href="distancemap.html">Distance Map</a>
+      <a class="nav-link" href="vizag.html">Vizag News</a>
+      <a class="nav-link" href="andhra.html">Andhra News</a>
+    </div>
+    <div class="nav-right">
+      <button class="theme-btn" id="themeBtn" aria-label="Toggle light/dark mode" title="Toggle theme">
+        <span class="theme-icon-moon">🌙</span>
+        <span class="theme-icon-sun">☀️</span>
+      </button>
+      <button class="nav-toggle" id="navToggle" aria-label="Toggle menu">☰</button>
+    </div>
+  </div>
+</nav>
+
+<div class="container">
+  <header class="masthead">
+    <div class="brand">NKR<span class="accent">live</span></div>
+
+    <svg class="tideline" viewBox="0 0 480 22" preserveAspectRatio="none" aria-hidden="true">
+      <path d="M-60 11 Q -30 4, 0 11 T 60 11 T 120 11 T 180 11 T 240 11 T 300 11 T 360 11 T 420 11 T 480 11 T 540 11" stroke-dasharray="600"/>
+    </svg>
+
+    <div class="status-strip" role="status" aria-live="polite">
+      <span class="beacon" id="beacon"></span>
+      <span id="connText">Connecting to live feed…</span>
+      <span class="sep">·</span>
+      <span id="syncTime">awaiting first update</span>
+    </div>
+  </header>
+
+  <div class="breaking-bar" id="breakingBar">
+    <div class="breaking-inner">
+      <div class="breaking-badge">
+        <div class="b-live">LIVE</div>
+        <div class="b-cat" id="bCat">NEWS</div>
+      </div>
+      <div class="breaking-stage" id="breakingStage">
+        <div class="breaking-headline active" id="bH0">Loading breaking news…</div>
+        <div class="breaking-headline" id="bH1"></div>
+        <div class="breaking-new-flash" id="bNewFlash">NEW</div>
+      </div>
+      <div class="breaking-counter">
+        <div class="b-cur" id="bCur">—</div>
+        <div class="b-tot" id="bTot">stories</div>
+      </div>
+    </div>
+  </div>
+
+  <section class="panel" aria-labelledby="clock-title">
+    <h2 class="panel-title" id="clock-title">Vizag Time <span class="tag muted">IST</span></h2>
+    <div class="clock-time" id="clockTime">--:--:--</div>
+    <div class="clock-date" id="clockDate">—</div>
+    <div class="clock-day" id="clockDay">—</div>
+  </section>
+
+  <section class="panel" aria-labelledby="weather-title">
+    <h2 class="panel-title" id="weather-title">Weather <span class="tag muted" id="weatherTag">live</span></h2>
+    <div class="weather-grid" id="weatherBox">
+      <div class="loader">Fetching conditions…</div>
+    </div>
+    <div class="sun-row" id="sunRow"></div>
+    <div class="forecast-strip" id="forecastStrip" style="display:none;">
+      <div class="forecast-label">12-hour forecast</div>
+      <div class="forecast-chart" id="forecastChart"></div>
+    </div>
+  </section>
+
+  <footer class="foot">
+    Sources: Google News, Times of India, The Hindu (Andhra Pradesh) · Weather via
+    <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a>
+    · Page updates automatically — no need to refresh.
+  </footer>
+</div>
+
+<script src="shared.js"></script>
+<script>
+async function loadWeather(){
+  const box = document.getElementById('weatherBox');
+  const tag = document.getElementById('weatherTag');
+
+  // Show error after 5 s client-side — don't let the spinner hang for 10 s+
+  const fallbackTimer = setTimeout(() => {
+    if (box.querySelector('.loader')) {
+      box.innerHTML = '<div class="loader">Weather unavailable — retrying in 5 min.</div>';
+      if (tag) tag.textContent = 'offline';
+    }
+  }, 5000);
+
+  try{
+    const res = await fetch('/api/weather?lat=17.7231&lon=83.3013');
+    clearTimeout(fallbackTimer);
+    if(!res.ok) throw new Error('bad response');
+    const data = await res.json();
+    const c = data.current;
+    const desc = VL_WMO_ICONS[c.weather_code] || '🌡️ Weather';
+    box.innerHTML = `
+      <div class="weather-temp">${Math.round(c.temperature_2m)}°C</div>
+      <div>
+        <div class="weather-desc">${desc}</div>
+        <div class="weather-meta">
+          Feels like <b>${Math.round(c.apparent_temperature)}°C</b><br>
+          Humidity <b>${c.relative_humidity_2m}%</b> &nbsp;·&nbsp; Wind <b>${Math.round(c.wind_speed_10m)} km/h</b>
+        </div>
+      </div>`;
+    if(data.daily){
+      const fmt = t => new Date(t).toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit'});
+      document.getElementById('sunRow').innerHTML = `
+        <div>Sunrise <b>${fmt(data.daily.sunrise[0])}</b></div>
+        <div>Sunset <b>${fmt(data.daily.sunset[0])}</b></div>
+        <div>UV max <b>${Math.round(data.daily.uv_index_max[0])}</b></div>`;
+    }
+    tag.textContent = 'updated ' + vlTimeAgo(new Date());
+    loadForecast();
+  }catch(e){
+    clearTimeout(fallbackTimer);
+    box.innerHTML = '<div class="loader">Weather unavailable — retrying shortly.</div>';
+    if (tag) tag.textContent = 'offline';
+  }
+}
+
+async function loadForecast(){
+  try{
+    const res = await fetch('/api/forecast?lat=17.7231&lon=83.3013');
+    if(!res.ok) throw new Error();
+    const data = await res.json();
+    const hours = data.hourly.time;
+    const temps = data.hourly.temperature_2m;
+    const codes = data.hourly.weather_code;
+
+    const nowIST = new Date(new Date().toLocaleString('en-US',{timeZone:'Asia/Kolkata'}));
+    const currentHour = nowIST.getHours();
+    const start = currentHour;
+    const end = Math.min(start + 12, 24);
+
+    const slice_temps = temps.slice(start, end);
+    const slice_codes = codes.slice(start, end);
+    const slice_hours = hours.slice(start, end);
+
+    const maxT = Math.max(...slice_temps);
+    const minT = Math.min(...slice_temps);
+    const range = maxT - minT || 1;
+
+    const chart = document.getElementById('forecastChart');
+    chart.innerHTML = '';
+    slice_temps.forEach((temp, i) => {
+      const h = new Date(slice_hours[i]).getHours();
+      const label = h === 0 ? '12a' : h < 12 ? h+'a' : h === 12 ? '12p' : (h-12)+'p';
+      const barH = Math.round(10 + ((temp - minT) / range) * 28);
+      const col = document.createElement('div');
+      col.className = 'fc-col';
+      col.innerHTML = `
+        <div class="fc-time">${label}</div>
+        <div class="fc-bar-wrap"><div class="fc-bar" style="height:${barH}px"></div></div>
+        <div class="fc-icon">${vlWmoEmoji(slice_codes[i])}</div>
+        <div class="fc-temp">${Math.round(temp)}°</div>`;
+      chart.appendChild(col);
+    });
+
+    document.getElementById('forecastStrip').style.display = 'block';
+  }catch(e){ /* silent fail */ }
+}
+
+loadWeather();
+setInterval(loadWeather, 5*60*1000);
+
+const beacon   = document.getElementById('beacon');
+const connText = document.getElementById('connText');
+const syncTime = document.getElementById('syncTime');
+let allItems = [];
+let lastSync = null;
+
+function updateSyncLabel(){
+  if(!lastSync) return;
+  syncTime.textContent = 'last update ' + vlTimeAgo(lastSync);
+}
+setInterval(updateSyncLabel, 5000);
+
+// ── BREAKING NEWS TICKER ENGINE ──────────────────────────────────────────────
+// Scores and rotates the most important/trending headlines like a TV ticker.
+// Cycles every 6s, crossfades between slides, flashes NEW on fresh arrivals.
+
+const CAT_LABELS = {
+  nkr:'NKR', andhra:'ANDHRA', vizag:'VIZAG', general:'VIZAG',
+  sports:'SPORTS', politics:'POLITICS', crime:'CRIME',
+  achievements:'ACHIEVMT', agriculture:'AGRI', civic:'CIVIC'
+};
+
+let tickerHeadlines  = [];   // scored & ranked list
+let tickerIdx        = 0;    // current position
+let tickerTimer      = null;
+let tickerNewIds     = new Set(); // ids of items that arrived this session
+
+function scoreItem(item) {
+  const age = (Date.now() - new Date(item.pubDate || item.receivedAt || 0).getTime()) / 3600000;
+  if (age > 24) return -1; // expired
+
+  let score = 100;
+  // Recency bonus — heavier weight for newer items
+  if (age < 0.5) score += 60;
+  else if (age < 1) score += 40;
+  else if (age < 3) score += 20;
+  else if (age < 6) score += 10;
+  else score -= age * 2;
+
+  // Category priority
+  const cat = item.category || '';
+  if (cat === 'nkr')          score += 50; // NKR always top
+  if (cat === 'sports')       score += 20;
+  if (cat === 'politics')     score += 15;
+  if (cat === 'crime')        score += 10;
+  if (cat === 'andhra')       score += 8;
+  if (cat === 'general')      score += 5;
+
+  // Verified by multiple sources gets a boost
+  if (item.verified)          score += 25;
+
+  // Breaking-news keywords boost
+  const t = (item.title || '').toLowerCase();
+  if (/breaking|exclusive|just in|urgent|alert/.test(t)) score += 30;
+  if (/killed|dead|arrested|blast|fire|flood|crash|accident/.test(t)) score += 20;
+  if (/nitish|nkr|srh|sunrisers|team india|bcci/.test(t)) score += 15;
+  if (/chandrababu|pawan kalyan|cm|chief minister/.test(t)) score += 10;
+
+  return score;
+}
+
+function buildTickerList() {
+  const scored = allItems
+    .map(i => ({ item: i, score: scoreItem(i) }))
+    .filter(x => x.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 20) // top 20 stories max
+    .map(x => x.item);
+  return scored;
+}
+
+function tickerShow(idx, isNew = false) {
+  const headlines  = tickerHeadlines;
+  if (!headlines.length) return;
+  idx = ((idx % headlines.length) + headlines.length) % headlines.length;
+  tickerIdx = idx;
+
+  const item   = headlines[idx];
+  const stage  = document.getElementById('breakingStage');
+  const h0     = document.getElementById('bH0');
+  const h1     = document.getElementById('bH1');
+  const bCat   = document.getElementById('bCat');
+  const bCur   = document.getElementById('bCur');
+  const bTot   = document.getElementById('bTot');
+  const flash  = document.getElementById('bNewFlash');
+  if (!stage || !h0 || !h1) return;
+
+  // Determine which slot is active
+  const activeEl   = h0.classList.contains('active') ? h0 : h1;
+  const inactiveEl = activeEl === h0 ? h1 : h0;
+
+  // Prepare incoming slide
+  inactiveEl.innerHTML = `<a href="${item.link || '#'}" target="_blank" rel="noopener">${item.title}</a>`;
+  inactiveEl.className = 'breaking-headline' + (item.category === 'nkr' ? ' nkr-story' : '');
+
+  // Crossfade
+  requestAnimationFrame(() => {
+    activeEl.classList.remove('active');
+    inactiveEl.classList.add('active');
+  });
+
+  // Update badge & counter
+  bCat.textContent  = CAT_LABELS[item.category] || 'NEWS';
+  bCur.textContent  = idx + 1;
+  bTot.textContent  = '/ ' + headlines.length;
+
+  // Flash NEW if this is a freshly arrived story
+  if (isNew || tickerNewIds.has(item.id)) {
+    flash.classList.add('show');
+    setTimeout(() => flash.classList.remove('show'), 2500);
+    tickerNewIds.delete(item.id);
+  }
+}
+
+function updateTicker(newItemId = null) {
+  tickerHeadlines = buildTickerList();
+  if (tickerHeadlines.length === 0) {
+    document.getElementById('bH0').textContent = 'Waiting for live updates…';
+    return;
+  }
+
+  // If a new item arrived, check if it's important enough to jump to it
+  if (newItemId) {
+    const newIdx = tickerHeadlines.findIndex(i => i.id === newItemId);
+    if (newIdx !== -1 && newIdx < 5) {
+      // It's in top 5 — jump to it immediately
+      tickerShow(newIdx, true);
+      return;
+    }
+  }
+
+  // Otherwise just re-render the current position (score may have changed)
+  tickerShow(tickerIdx);
+}
+
+function startTickerRotation() {
+  if (tickerTimer) clearInterval(tickerTimer);
+  tickerTimer = setInterval(() => {
+    tickerHeadlines = buildTickerList();
+    if (tickerHeadlines.length > 0) {
+      tickerShow((tickerIdx + 1) % tickerHeadlines.length);
+    }
+  }, 6000); // change headline every 6 seconds
+}
+startTickerRotation();
+
+let _wsAlive = false;
+let _wsRestFallback = false;  // true once we've switched to REST polling
+let _wsRestTimer = null;
+
+// REST news polling — used when WebSocket is blocked (reverse proxy, strict firewall, etc.)
+async function pollNewsREST() {
+  try {
+    const res = await fetch('/api/news');
+    if (!res.ok) throw new Error();
+    const items = await res.json();
+    if (items.length) {
+      allItems = items;
+      updateTicker();
+      lastSync = new Date();
+      updateSyncLabel();
+    } else {
+      document.getElementById('bH0').textContent = 'No news available — feeds updating…';
+    }
+  } catch(e) {
+    document.getElementById('bH0').textContent = 'News feed offline — retrying…';
+  }
+  _wsRestTimer = setTimeout(pollNewsREST, 30 * 1000);
+}
+
+function connect(delay = 1500){
+  const proto = location.protocol === 'https:' ? 'wss://' : 'ws://';
+  const ws = new WebSocket(proto + location.host);
+  _wsAlive = false;
+
+  // If WS doesn't open within 8 s, fall back to REST polling
+  const wsOpenTimeout = setTimeout(() => {
+    if (!_wsAlive && !_wsRestFallback) {
+      _wsRestFallback = true;
+      beacon.classList.remove('on');
+      connText.textContent = 'Live feed unavailable — using fallback';
+      ws.close();
+      pollNewsREST();
+    }
+  }, 8000);
+
+  ws.onopen = () => {
+    clearTimeout(wsOpenTimeout);
+    _wsAlive = true;
+    _wsRestFallback = false;
+    if (_wsRestTimer) { clearTimeout(_wsRestTimer); _wsRestTimer = null; }
+    beacon.classList.add('on');
+    connText.textContent = 'Live feed connected';
+  };
+  ws.onclose = () => {
+    clearTimeout(wsOpenTimeout);
+    _wsAlive = false;
+    beacon.classList.remove('on');
+    connText.textContent = 'Reconnecting…';
+    vlWsReconnect(connect, delay, null);
+  };
+  ws.onerror = () => { ws.close(); };
+  ws.onmessage = (event) => {
+    let msg;
+    try{ msg = JSON.parse(event.data); }catch(e){ return; }
+
+    if(msg.type === 'init'){
+      allItems = msg.items || [];
+      if (allItems.length === 0) {
+        document.getElementById('bH0').textContent = 'No news available — feeds updating…';
+      } else {
+        updateTicker();
+      }
+      lastSync = new Date();
+      updateSyncLabel();
+    } else if(msg.type === 'news'){
+      const isNew = !allItems.find(i => i.id === msg.item.id);
+      if(isNew){
+        allItems.unshift(msg.item);
+        allItems = allItems.slice(0, 200);
+        allItems.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
+        tickerNewIds.add(msg.item.id);
+        updateTicker(msg.item.id);
+        lastSync = new Date();
+        updateSyncLabel();
+        const shortTitle = msg.item.title.length > 60 ? msg.item.title.substring(0,58)+'…' : msg.item.title;
+        vlShowToast(shortTitle);
+      }
+    }
+  };
+}
+connect();
+vlWsVisibilityGuard(() => _wsAlive, () => connect(1500));
+</script>
+</body>
+</html>

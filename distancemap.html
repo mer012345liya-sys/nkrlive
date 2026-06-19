@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Distance Map — live distance from your chosen place to wherever NKR currently is, auto-updating as he travels.">
+<title>Distance Map — NKRlive</title>
+<link rel="icon" href="assets/nkr-logo.png" type="image/png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+<style>
+  /* ============ DISTANCE MAP ============ */
+  .lm-head{ text-align:center; padding:8px 0 4px; }
+  .lm-eyebrow{
+    font-family:var(--font-mono); font-size:10.5px; letter-spacing:.18em; text-transform:uppercase;
+    color:var(--teal-bright); display:flex; align-items:center; justify-content:center; gap:8px;
+  }
+  .lm-eyebrow .pulse-dot{ width:7px; height:7px; border-radius:50%; background:var(--teal-bright); animation:pulse 1.2s infinite; }
+
+  /* Origin picker */
+  .lm-picker{
+    display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin:18px 0 4px;
+  }
+  .lm-pick-btn{
+    font-family:var(--font-mono); font-size:11px; letter-spacing:.04em;
+    padding:8px 14px; border-radius:20px; border:1px solid var(--line-strong);
+    background:var(--panel); color:var(--ink-dim); cursor:pointer; transition:all .18s;
+    display:flex; align-items:center; gap:6px;
+  }
+  .lm-pick-btn:hover{ border-color:var(--brass); color:var(--brass); }
+  .lm-pick-btn.active{
+    background:linear-gradient(135deg, rgba(216,168,67,.18), rgba(91,196,182,.12));
+    border-color:var(--brass); color:var(--brass); font-weight:600;
+  }
+  .lm-pick-btn.active .pin{ color:var(--brass); }
+
+  /* Route card — the signature element */
+  .lm-route{
+    position:relative; margin-top:18px; border-radius:var(--radius);
+    border:1px solid var(--line);
+    background:
+      radial-gradient(circle at 14% 30%, rgba(216,168,67,.10), transparent 45%),
+      radial-gradient(circle at 86% 70%, rgba(91,196,182,.10), transparent 45%),
+      var(--panel);
+    padding:28px 20px 24px; overflow:hidden;
+  }
+  .lm-route::before{
+    content:''; position:absolute; inset:0; pointer-events:none; opacity:.35;
+    background-image: radial-gradient(circle, var(--line-strong) 1px, transparent 1.4px);
+    background-size: 16px 16px;
+    mask-image: linear-gradient(to bottom, transparent, rgba(0,0,0,.6) 30%, rgba(0,0,0,.6) 70%, transparent);
+  }
+
+  .lm-endpoints{ position:relative; display:flex; align-items:flex-start; justify-content:space-between; gap:10px; z-index:1; }
+  .lm-endpoint{ flex:1; min-width:0; }
+  .lm-endpoint.lm-end-right{ text-align:right; }
+  .lm-end-label{
+    font-family:var(--font-mono); font-size:9.5px; letter-spacing:.18em; text-transform:uppercase;
+    color:var(--ink-faint); margin-bottom:6px;
+  }
+  .lm-end-pin{ font-size:20px; line-height:1; margin-bottom:4px; }
+  .lm-end-name{ font-family:var(--font-display); font-weight:600; font-size:15px; color:var(--ink); line-height:1.3; }
+  .lm-end-sub{ font-size:11.5px; color:var(--ink-dim); margin-top:2px; }
+  .lm-end-time{ font-family:var(--font-mono); font-size:11px; color:var(--teal-bright); margin-top:6px; }
+
+  /* The connecting line + distance readout */
+  .lm-link{ position:relative; z-index:1; padding:26px 0 10px; }
+  .lm-link-line{
+    position:relative; height:2px; width:100%;
+    background:repeating-linear-gradient(to right, var(--line-strong) 0 8px, transparent 8px 16px);
+  }
+  .lm-link-line .lm-plane{
+    position:absolute; top:50%; left:var(--lm-progress, 50%); transform:translate(-50%,-50%);
+    font-size:18px; filter:drop-shadow(0 0 6px rgba(216,168,67,.5));
+    transition:left 1.2s ease;
+  }
+  .lm-link-line::before, .lm-link-line::after{
+    content:'❤'; position:absolute; top:50%; transform:translate(-50%,-50%);
+    font-size:13px; color:var(--brass);
+  }
+  .lm-link-line::before{ left:0; }
+  .lm-link-line::after{ left:100%; }
+
+  .lm-distance{
+    text-align:center; margin-top:18px;
+  }
+  .lm-distance-km{
+    font-family:var(--font-display); font-weight:700; font-size:clamp(40px,9vw,64px);
+    color:var(--ink); line-height:1; letter-spacing:-.01em;
+  }
+  .lm-distance-km .unit{ font-size:.4em; font-weight:600; color:var(--ink-dim); margin-left:6px; letter-spacing:.06em; }
+  .lm-distance-label{
+    font-family:var(--font-mono); font-size:10.5px; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--ink-faint); margin-top:6px;
+  }
+  .lm-distance-delta{
+    font-family:var(--font-mono); font-size:12px; margin-top:10px; display:inline-flex;
+    align-items:center; gap:6px; padding:4px 12px; border-radius:20px; border:1px solid var(--line);
+    color:var(--ink-dim);
+  }
+  .lm-distance-delta.up{ color:#e57373; border-color:rgba(229,115,115,.35); }
+  .lm-distance-delta.down{ color:#4caf50; border-color:rgba(76,175,80,.35); }
+  .lm-distance-delta .arrow{ font-size:13px; }
+
+  /* Confidence / status note */
+  .lm-status-note{
+    margin-top:18px; font-size:12px; color:var(--ink-dim); text-align:center;
+    border-top:1px solid var(--line); padding-top:14px; line-height:1.6;
+  }
+  .lm-status-note .badge{
+    font-family:var(--font-mono); font-size:10px; letter-spacing:.06em; text-transform:uppercase;
+    padding:2px 8px; border-radius:10px; border:1px solid var(--line-strong); margin:0 2px;
+  }
+  .lm-status-note .badge.live{ border-color:rgba(76,175,80,.4); color:#4caf50; background:rgba(76,175,80,.08); }
+  .lm-status-note .badge.unverified{ border-color:rgba(229,115,115,.4); color:#e57373; background:rgba(229,115,115,.08); }
+
+  /* Custom location form */
+  .lm-custom{
+    margin-top:14px; display:flex; gap:8px; flex-wrap:wrap; justify-content:center;
+  }
+  .lm-custom input{
+    font-family:var(--font-body); font-size:12px; padding:8px 12px; border-radius:10px;
+    border:1px solid var(--line-strong); background:var(--panel); color:var(--ink); min-width:120px;
+  }
+  .lm-custom input:focus{ outline:2px solid var(--teal); outline-offset:1px; }
+  .lm-custom button{
+    font-family:var(--font-mono); font-size:11px; letter-spacing:.06em; text-transform:uppercase;
+    padding:8px 14px; border-radius:10px; border:1px solid var(--brass-dim); background:transparent;
+    color:var(--brass); cursor:pointer; transition:all .15s;
+  }
+  .lm-custom button:hover{ background:rgba(216,168,67,.1); }
+  .lm-custom button:disabled{ opacity:.5; cursor:default; }
+  .lm-custom-hint{
+    text-align:center; font-size:11.5px; color:var(--ink-dim); margin-top:8px;
+    font-family:var(--font-mono);
+  }
+  .lm-custom-hint.error{ color:#e57373; }
+  .lm-custom-hint.ok{ color:#4caf50; }
+
+  .lm-loading{ text-align:center; color:var(--ink-dim); font-size:13px; padding:30px 0; }
+
+  @keyframes pulse{ 0%,100%{opacity:1} 50%{opacity:.35} }
+</style>
+</head>
+<body>
+<div id="toast-container" aria-live="polite" aria-atomic="false"></div>
+
+<nav class="topnav">
+  <div class="topnav-inner">
+    <a class="nav-brand" href="index.html">
+      <img class="mark" src="assets/nkr-logo.png" alt="NKR">
+      NKR<span class="accent">live</span>
+    </a>
+    <div class="nav-links" id="navLinks">
+      <a class="nav-link" href="index.html">Home</a>
+      <a class="nav-link" href="nkr.html">NKR</a>
+      <a class="nav-link active" href="distancemap.html">Distance Map</a>
+      <a class="nav-link" href="vizag.html">Vizag News</a>
+      <a class="nav-link" href="andhra.html">Andhra News</a>
+    </div>
+    <div class="nav-right">
+      <button class="theme-btn" id="themeBtn" aria-label="Toggle light/dark mode" title="Toggle theme">
+        <span class="theme-icon-moon">🌙</span>
+        <span class="theme-icon-sun">☀️</span>
+      </button>
+      <button class="nav-toggle" id="navToggle" aria-label="Toggle menu">☰</button>
+    </div>
+  </div>
+</nav>
+
+<div class="container">
+  <header class="page-head lm-head">
+    <h1 class="page-title">Distance Map</h1>
+    <div class="lm-eyebrow"><span class="pulse-dot"></span>Live distance · auto-updates as NKR travels</div>
+  </header>
+
+  <!-- Origin picker -->
+  <div class="lm-picker" id="lmPicker">
+    <button class="lm-pick-btn" data-key="donavur">
+      <span class="pin">📍</span> Mavadi, Donavur (Tirunelveli)
+    </button>
+    <button class="lm-pick-btn" data-key="karunya">
+      <span class="pin">📍</span> Karunya Institute (Coimbatore)
+    </button>
+    <button class="lm-pick-btn" data-key="custom">
+      <span class="pin">✏️</span> Custom place
+    </button>
+  </div>
+
+  <!-- Custom location entry (hidden unless "Custom place" selected) -->
+  <div class="lm-custom" id="lmCustomForm" style="display:none;">
+    <input type="text" id="lmCustomName" placeholder="Place name (e.g. Tenkasi, Tamil Nadu)">
+    <input type="text" id="lmCustomPin" placeholder="PIN code (e.g. 627811)" inputmode="numeric" maxlength="6" pattern="\d{6}">
+    <button id="lmCustomApply">Set place</button>
+  </div>
+  <div class="lm-custom-hint" id="lmCustomHint" style="display:none;"></div>
+
+  <!-- Route card -->
+  <section class="panel lm-route" aria-label="Distance to NKR's current location">
+    <div id="lmBody">
+      <div class="lm-loading">Locating NKR…</div>
+    </div>
+  </section>
+</div>
+
+<script src="shared.js"></script>
+<script>
+/* ====================================================================
+   DISTANCE MAP — distance from a chosen place to NKR's live location
+==================================================================== */
+
+// Preset origin points
+const LM_PRESETS = {
+  donavur: {
+    name: 'Mavadi (Dohnavur)',
+    sub: 'Donavur Main Road, Nanguneri Taluk, Tirunelveli, Tamil Nadu',
+    lat: 8.4918,
+    lon: 77.6580,
+    flag: '🇮🇳',
+    tz: 'Asia/Kolkata'
+  },
+  karunya: {
+    name: 'Karunya Institute of Technology & Sciences',
+    sub: 'Karunya Nagar, Coimbatore, Tamil Nadu',
+    lat: 10.9386,
+    lon: 76.7467,
+    flag: '🇮🇳',
+    tz: 'Asia/Kolkata'
+  }
+};
+
+const LM_STORAGE_KEY = 'vl-distancemap-origin';
+let lmCustom = null; // { name, sub, lat, lon }
+let lmActiveKey = 'donavur';
+let lmLastDistance = null;
+let lmNkrData = null;
+let lmPollTimer = null;
+
+// ---- Haversine great-circle distance (km), accurate to ~0.5% ----
+function lmHaversineKm(lat1, lon1, lat2, lon2){
+  const R = 6371.0088; // mean Earth radius (km) — IUGG value, more accurate than 6371
+  const toRad = d => d * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat/2)**2 +
+            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2)**2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c;
+}
+
+function lmGetOrigin(){
+  if(lmActiveKey === 'custom' && lmCustom) return lmCustom;
+  return LM_PRESETS[lmActiveKey] || LM_PRESETS.donavur;
+}
+
+function lmFmtTime(tz){
+  try{
+    return new Intl.DateTimeFormat('en-IN', { timeZone: tz, hour:'2-digit', minute:'2-digit', hour12:true, weekday:'short' }).format(new Date());
+  }catch(e){ return '—'; }
+}
+
+// Map common country -> IANA timezone for NKR's destination clock
+const LM_COUNTRY_TZ = {
+  'India':'Asia/Kolkata', 'England':'Europe/London', 'Ireland':'Europe/London',
+  'Zimbabwe':'Africa/Harare', 'Japan':'Asia/Tokyo'
+};
+
+function lmRender(){
+  const body = document.getElementById('lmBody');
+  if(!lmNkrData){
+    body.innerHTML = '<div class="lm-loading">Locating NKR…</div>';
+    return;
+  }
+  const loc = lmNkrData.location;
+  const origin = lmGetOrigin();
+
+  const distKm = lmHaversineKm(origin.lat, origin.lon, loc.lat, loc.lon);
+  const distRounded = Math.round(distKm * 10) / 10;
+
+  // Delta vs last reading
+  let deltaHtml = '';
+  if(lmLastDistance != null && Math.abs(lmLastDistance - distRounded) >= 0.1){
+    const diff = distRounded - lmLastDistance;
+    const cls = diff > 0 ? 'up' : 'down';
+    const arrow = diff > 0 ? '↗' : '↘';
+    const word = diff > 0 ? 'farther' : 'closer';
+    deltaHtml = `<div class="lm-distance-delta ${cls}"><span class="arrow">${arrow}</span>${Math.abs(Math.round(diff*10)/10)} km ${word} since last update</div>`;
+  }
+  lmLastDistance = distRounded;
+
+  const destTz = LM_COUNTRY_TZ[loc.country] || 'Asia/Kolkata';
+
+  const confidence = loc.confidence || 0;
+  let badge;
+  if(confidence >= 70) badge = '<span class="badge live">Live</span>';
+  else if(confidence >= 60) badge = '<span class="badge live">Likely</span>';
+  else badge = '<span class="badge unverified">Unverified</span>';
+
+  // Position the little plane along the dashed line based on confidence
+  // (purely decorative — anchored center, drifts slightly with confidence)
+  const progress = 50;
+
+  body.innerHTML = `
+    <div class="lm-endpoints">
+      <div class="lm-endpoint lm-end-left">
+        <div class="lm-end-label">From</div>
+        <div class="lm-end-pin">📍</div>
+        <div class="lm-end-name">${origin.name}</div>
+        <div class="lm-end-sub">${origin.sub}</div>
+        <div class="lm-end-time">${lmFmtTime(origin.tz || 'Asia/Kolkata')} local</div>
+      </div>
+      <div class="lm-endpoint lm-end-right">
+        <div class="lm-end-label">To NKR</div>
+        <div class="lm-end-pin">${loc.flag || '📍'}</div>
+        <div class="lm-end-name">${loc.city}</div>
+        <div class="lm-end-sub">${loc.venue}</div>
+        <div class="lm-end-time">${lmFmtTime(destTz)} local</div>
+      </div>
+    </div>
+
+    <div class="lm-link">
+      <div class="lm-link-line" style="--lm-progress:${progress}%">
+        <span class="lm-plane">✈️</span>
+      </div>
+      <div class="lm-distance">
+        <div class="lm-distance-km">${distRounded.toLocaleString('en-IN')}<span class="unit">km</span></div>
+        <div class="lm-distance-label">Straight-line distance · updates live</div>
+        ${deltaHtml}
+      </div>
+    </div>
+
+    <div class="lm-status-note">
+      ${badge} NKR's location detected from ${loc.detectedFrom ? 'recent signals' : 'fixture schedule'}.
+      ${loc.detectedAt ? 'Last updated ' + vlTimeAgo(new Date(loc.detectedAt)) + '.' : ''}
+      This route updates automatically whenever his detected location changes.
+    </div>
+  `;
+}
+
+// ---- Picker wiring ----
+function lmSetActive(key){
+  lmActiveKey = key;
+  localStorage.setItem(LM_STORAGE_KEY, JSON.stringify({ key, custom: lmCustom }));
+  document.querySelectorAll('.lm-pick-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.key === key);
+  });
+  document.getElementById('lmCustomForm').style.display = (key === 'custom') ? 'flex' : 'none';
+  lmLastDistance = null; // reset delta tracking on origin change
+  lmRender();
+}
+
+document.getElementById('lmPicker').addEventListener('click', (e) => {
+  const btn = e.target.closest('.lm-pick-btn');
+  if(!btn) return;
+  const key = btn.dataset.key;
+  if(key === 'custom' && !lmCustom){
+    // open the form but don't switch to it until a place is set
+    document.getElementById('lmCustomForm').style.display = 'flex';
+    document.querySelectorAll('.lm-pick-btn').forEach(b => b.classList.toggle('active', b.dataset.key === key));
+    return;
+  }
+  lmSetActive(key);
+});
+
+async function lmApplyCustomPlace(){
+  const nameInput = document.getElementById('lmCustomName');
+  const pinInput = document.getElementById('lmCustomPin');
+  const applyBtn = document.getElementById('lmCustomApply');
+  const hint = document.getElementById('lmCustomHint');
+
+  const name = nameInput.value.trim();
+  const pincode = pinInput.value.trim();
+
+  if(!name && !pincode){
+    hint.textContent = 'Enter a place name and/or a 6-digit PIN code.';
+    hint.className = 'lm-custom-hint error';
+    hint.style.display = 'block';
+    return;
+  }
+  if(pincode && !/^\d{6}$/.test(pincode)){
+    hint.textContent = 'PIN code must be 6 digits.';
+    hint.className = 'lm-custom-hint error';
+    hint.style.display = 'block';
+    return;
+  }
+
+  applyBtn.disabled = true;
+  applyBtn.textContent = 'Finding…';
+  hint.style.display = 'none';
+
+  try{
+    const params = new URLSearchParams();
+    if(name) params.set('name', name);
+    if(pincode) params.set('pincode', pincode);
+    const res = await fetch('/api/geocode?' + params.toString());
+    const data = await res.json();
+
+    if(!res.ok || data.error){
+      hint.textContent = data.error || "Couldn't find that place.";
+      hint.className = 'lm-custom-hint error';
+      hint.style.display = 'block';
+      return;
+    }
+
+    const displayName = data.approximate ? data.resolvedName : (name || data.resolvedName);
+    const subParts = [data.resolvedName, data.admin1, data.country].filter((v, i, a) => v && a.indexOf(v) === i);
+    lmCustom = {
+      name: displayName,
+      sub: subParts.join(', '),
+      lat: data.lat,
+      lon: data.lon,
+      tz: data.timezone || 'Asia/Kolkata'
+    };
+    lmSetActive('custom');
+    if(data.approximate){
+      hint.textContent = `Couldn't find "${data.requestedName}" exactly — showing nearest matched area: ${subParts.join(', ')} (${data.lat.toFixed(4)}, ${data.lon.toFixed(4)})`;
+      hint.className = 'lm-custom-hint ok';
+    } else {
+      hint.textContent = `Found: ${subParts.join(', ')} (${data.lat.toFixed(4)}, ${data.lon.toFixed(4)})`;
+      hint.className = 'lm-custom-hint ok';
+    }
+    hint.style.display = 'block';
+    vlShowToast('Custom place set');
+  }catch(e){
+    hint.textContent = 'Lookup failed — try again.';
+    hint.className = 'lm-custom-hint error';
+    hint.style.display = 'block';
+  }finally{
+    applyBtn.disabled = false;
+    applyBtn.textContent = 'Set place';
+  }
+}
+
+document.getElementById('lmCustomApply').addEventListener('click', lmApplyCustomPlace);
+document.getElementById('lmCustomPin').addEventListener('keydown', (e) => { if(e.key === 'Enter') lmApplyCustomPlace(); });
+document.getElementById('lmCustomName').addEventListener('keydown', (e) => { if(e.key === 'Enter') lmApplyCustomPlace(); });
+
+// ---- Restore saved selection ----
+(function lmRestore(){
+  try{
+    const saved = JSON.parse(localStorage.getItem(LM_STORAGE_KEY) || 'null');
+    if(saved && saved.custom) lmCustom = saved.custom;
+    if(saved && saved.key && (LM_PRESETS[saved.key] || (saved.key === 'custom' && lmCustom))){
+      lmActiveKey = saved.key;
+    }
+  }catch(e){}
+  document.querySelectorAll('.lm-pick-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.key === lmActiveKey);
+  });
+  if(lmActiveKey === 'custom'){
+    document.getElementById('lmCustomForm').style.display = 'flex';
+    if(lmCustom){
+      document.getElementById('lmCustomName').value = lmCustom.name;
+      const hint = document.getElementById('lmCustomHint');
+      hint.textContent = `Using: ${lmCustom.sub} (${lmCustom.lat.toFixed(4)}, ${lmCustom.lon.toFixed(4)})`;
+      hint.className = 'lm-custom-hint ok';
+      hint.style.display = 'block';
+    }
+  }
+})();
+
+// ---- NKR live status polling ----
+async function lmLoadNkrStatus(force = false){
+  try{
+    const res = await fetch('/api/nkr-status' + (force ? '?refresh=1' : ''));
+    const data = await res.json();
+    const prevCity = lmNkrData && lmNkrData.location ? lmNkrData.location.city : null;
+    lmNkrData = data;
+    if(prevCity && prevCity !== data.location.city){
+      vlShowToast(`NKR moved to ${data.location.city} — distance updated`);
+      lmLastDistance = null; // don't show a misleading delta across a location jump
+    }
+    lmRender();
+  }catch(e){
+    document.getElementById('lmBody').innerHTML = '<div class="lm-loading">Unable to load NKR\'s location right now.</div>';
+  }
+}
+
+lmLoadNkrStatus();
+setInterval(() => lmLoadNkrStatus(false), 5 * 60 * 1000);
+
+// Re-poll when tab comes back from background
+let _lmLastPoll = Date.now();
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && Date.now() - _lmLastPoll > 4 * 60 * 1000) {
+    lmLoadNkrStatus(false);
+    _lmLastPoll = Date.now();
+  }
+});
+</script>
+</body>
+</html>

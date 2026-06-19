@@ -1,0 +1,1145 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Track Nitish Kumar Reddy — current location, live venue weather, upcoming fixtures and the latest headlines.">
+<title>NKR — NKRlive</title>
+<link rel="icon" href="assets/nkr-logo.png" type="image/png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+<style>
+  .refresh-btn{
+    font-family:var(--font-mono); font-size:10.5px; letter-spacing:.08em; text-transform:uppercase;
+    background:none; border:1px solid var(--line-strong); border-radius:7px;
+    padding:4px 10px; cursor:pointer; color:var(--ink-dim); transition:all .15s;
+  }
+  .refresh-btn:hover{ border-color:var(--brass); color:var(--brass); }
+  .refresh-btn:active{ transform:scale(0.97); }
+
+  /* Confidence badge */
+  .conf-bar-wrap{ margin-top:0; }
+  .conf-label{ font-family:var(--font-mono); font-size:10.5px; color:var(--ink-faint); letter-spacing:.08em; margin-bottom:6px; }
+  .conf-bar-bg{ background:rgba(255,255,255,.07); border-radius:6px; height:6px; overflow:hidden; width:100%; }
+  .conf-bar-fill{ height:6px; border-radius:6px; transition:width .5s ease; }
+  .conf-high  .conf-bar-fill{ background:#4caf50; }
+  .conf-med   .conf-bar-fill{ background:#d8a843; }
+  .conf-low   .conf-bar-fill{ background:#e57373; }
+  .conf-score{ font-family:var(--font-mono); font-size:12.5px; font-weight:600; margin-left:10px; }
+  .conf-high .conf-score{ color:#4caf50; }
+  .conf-med  .conf-score{ color:#d8a843; }
+  .conf-low  .conf-score{ color:#e57373; }
+  .conf-sources{ font-size:11.5px; color:var(--ink-dim); margin-top:6px; }
+
+  /* Signal breakdown table */
+  .sig-details{ margin-top:10px; }
+  .sig-details summary{
+    cursor:pointer; font-size:11.5px; color:var(--ink-dim); font-family:var(--font-mono);
+    letter-spacing:.04em; list-style:none; display:flex; align-items:center; gap:6px;
+  }
+  .sig-details summary::-webkit-details-marker{ display:none; }
+  .sig-details summary::before{ content:'›'; display:inline-block; transition:transform .15s; font-size:13px; }
+  .sig-details[open] summary::before{ transform:rotate(90deg); }
+  .signal-table{ width:100%; border-collapse:collapse; margin-top:8px; font-size:12px; }
+  .signal-table th{ text-align:left; font-family:var(--font-mono); font-size:9.5px; letter-spacing:.07em; text-transform:uppercase; color:var(--ink-faint); padding:5px 8px; border-bottom:1px solid var(--line); }
+  .signal-table td{ padding:6px 8px; border-bottom:1px solid rgba(255,255,255,.04); vertical-align:middle; }
+  .signal-table tr:last-child td{ border-bottom:none; }
+  .sig-mini-bar{ display:inline-block; height:5px; border-radius:3px; vertical-align:middle; margin-right:6px; }
+
+  /* Evidence flow panel */
+  .evidence-panel{ margin-top:14px; border:1px solid var(--line); border-radius:10px; overflow:hidden; }
+  .evidence-header{ background:rgba(255,255,255,.03); padding:10px 14px; display:flex; align-items:center; gap:8px; font-family:var(--font-mono); font-size:10px; letter-spacing:.07em; text-transform:uppercase; color:var(--ink-dim); cursor:pointer; user-select:none; }
+  .evidence-header:hover{ background:rgba(255,255,255,.07); }
+  .evidence-body{ padding:12px 14px 14px; }
+  .ev-flow{ display:flex; flex-direction:column; gap:8px; }
+  .ev-tier{ display:flex; align-items:flex-start; gap:10px; }
+  .ev-tier-icon{ font-size:16px; flex-shrink:0; margin-top:1px; }
+  .ev-tier-label{ font-family:var(--font-mono); font-size:10px; letter-spacing:.07em; text-transform:uppercase; color:var(--ink-dim); margin-bottom:3px; }
+  .ev-chips{ display:flex; flex-wrap:wrap; gap:5px; }
+  .ev-chip{ font-size:11px; padding:2px 8px; border-radius:20px; border:1px solid; white-space:nowrap; }
+  .ev-chip.official{ border-color:rgba(76,175,80,.4); color:#4caf50; background:rgba(76,175,80,.08); }
+  .ev-chip.media{    border-color:rgba(216,168,67,.4); color:#d8a843; background:rgba(216,168,67,.08); }
+  .ev-chip.fan{      border-color:rgba(91,196,182,.4); color:#5bc4b6; background:rgba(91,196,182,.08); }
+  .ev-chip.vision{   border-color:rgba(171,71,188,.4); color:#ce93d8; background:rgba(171,71,188,.08); }
+  .ev-chip.empty{    border-color:var(--line); color:var(--ink-dim); }
+  .ev-arrow{ text-align:center; font-size:18px; color:var(--ink-dim); line-height:1; }
+  .ev-result{ background:rgba(255,255,255,.04); border-radius:8px; padding:8px 12px; display:flex; align-items:center; gap:10px; }
+  .ev-result-city{ font-weight:600; font-size:14px; }
+  .ev-result-conf{ font-family:var(--font-mono); font-size:12px; }
+  .fan-boost-note{ font-size:11px; color:#5bc4b6; margin-top:6px; font-style:italic; }
+
+  /* Gemini AI reasoning card */
+  .gemini-card{ margin-top:14px; background:rgba(66,133,244,.08); border:1px solid rgba(66,133,244,.25); border-radius:10px; padding:12px 14px; }
+  .gemini-label{ font-family:var(--font-mono); font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:#7baaf7; margin-bottom:6px; display:flex; align-items:center; gap:6px; }
+  .gemini-label svg{ width:14px; height:14px; }
+  .gemini-city{ font-size:16px; font-weight:600; color:var(--ink); }
+  .gemini-conf{ font-family:var(--font-mono); font-size:13px; color:#7baaf7; margin-left:8px; }
+  .gemini-reason{ font-size:12.5px; color:var(--ink-dim); margin-top:5px; line-height:1.5; }
+  .gemini-signal{ font-size:11px; color:var(--ink-dim); margin-top:4px; font-style:italic; }
+
+  /* CricAPI live badge */
+  .cric-live-badge{ display:inline-flex; align-items:center; gap:5px; background:rgba(235,87,87,.12); border:1px solid rgba(235,87,87,.3); border-radius:6px; padding:3px 8px; font-size:11px; font-family:var(--font-mono); color:#eb5757; margin-top:8px; }
+  .cric-live-dot{ width:7px; height:7px; border-radius:50%; background:#eb5757; animation:pulse 1.2s infinite; }
+  @keyframes pulse{ 0%{opacity:1} 50%{opacity:.35} 100%{opacity:1} }
+
+  /* ===== Match Day Tracker ===== */
+  .matchday-panel{ border-color:var(--line-strong); }
+  .md-header{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:4px; }
+  .md-badge{
+    font-family:var(--font-mono); font-size:13px; font-weight:600; letter-spacing:.04em;
+    padding:5px 12px; border-radius:8px; display:inline-flex; align-items:center; gap:7px;
+  }
+  .md-badge .md-dot{ width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+  .md-badge.amber{ background:rgba(216,168,67,.12); border:1px solid rgba(216,168,67,.3); color:var(--moderate); }
+  .md-badge.amber .md-dot{ background:var(--moderate); animation:pulse 1.4s infinite; }
+  .md-badge.green{ background:rgba(91,196,182,.12); border:1px solid rgba(91,196,182,.3); color:var(--good); }
+  .md-badge.green .md-dot{ background:var(--good); animation:pulse 1.2s infinite; }
+  .md-badge.red{ background:rgba(239,122,99,.12); border:1px solid rgba(239,122,99,.3); color:var(--poor); }
+  .md-badge.red .md-dot{ background:var(--poor); }
+  .md-badge.muted{ background:rgba(255,255,255,.05); border:1px solid var(--line); color:var(--ink-dim); }
+  .md-badge.muted .md-dot{ background:var(--ink-faint); }
+
+  .md-match{ font-size:14.5px; font-weight:500; margin:10px 0 2px; }
+  .md-meta{ font-size:12px; color:var(--ink-dim); }
+  .md-role{ font-size:12px; color:var(--ink-dim); margin-top:4px; }
+
+  .md-countdown-wrap{ margin-top:14px; text-align:center; background:rgba(255,255,255,.03); border:1px solid var(--line); border-radius:10px; padding:14px 10px; }
+  .md-countdown-label{ font-family:var(--font-mono); font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-faint); margin-bottom:6px; }
+  .md-countdown{ font-family:var(--font-mono); font-size:24px; font-weight:600; color:var(--ink); letter-spacing:.02em; }
+
+  .md-notify{ margin-top:10px; font-size:12.5px; color:var(--ink-dim); background:rgba(255,255,255,.03); border-radius:8px; padding:8px 12px; }
+
+  .md-sub-card{ margin-top:14px; border:1px solid var(--line); border-radius:10px; padding:14px; background:rgba(255,255,255,.02); }
+  .md-sub-title{ font-family:var(--font-mono); font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-dim); margin-bottom:10px; display:flex; align-items:center; gap:7px; }
+  .md-sub-title .md-live-dot{ width:7px; height:7px; border-radius:50%; background:var(--poor); animation:pulse 1.1s infinite; }
+
+  .md-stat-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
+  @media (max-width:480px){ .md-stat-grid{ grid-template-columns:repeat(2,1fr); } }
+  .md-stat{ text-align:center; }
+  .md-stat .num{ display:block; font-family:var(--font-mono); font-size:18px; font-weight:600; color:var(--ink); }
+  .md-stat .lbl{ display:block; font-size:10.5px; color:var(--ink-faint); margin-top:2px; }
+
+  .md-catch-pill{ display:inline-flex; align-items:center; gap:7px; margin-top:12px; font-size:12.5px; background:rgba(91,196,182,.1); border:1px solid rgba(91,196,182,.25); color:var(--good); border-radius:20px; padding:5px 12px; }
+
+  .md-reason{ margin-top:10px; font-size:12.5px; color:var(--ink-dim); }
+  .md-reason b{ color:var(--ink); font-weight:600; }
+
+  .md-perf-row{ display:flex; justify-content:space-between; gap:10px; font-size:13px; padding:6px 0; border-bottom:1px solid var(--line); }
+  .md-perf-row:last-child{ border-bottom:none; }
+  .md-perf-row .lbl{ color:var(--ink-dim); }
+  .md-perf-row .val{ font-family:var(--font-mono); font-weight:600; }
+  .md-perf-expiry{ margin-top:10px; font-size:11px; color:var(--ink-faint); text-align:right; }
+
+  .md-note{ margin-top:12px; font-size:11.5px; color:var(--ink-faint); font-style:italic; }
+</style>
+</head>
+<body>
+<div id="toast-container" aria-live="polite" aria-atomic="false"></div>
+
+<nav class="topnav">
+  <div class="topnav-inner">
+    <a class="nav-brand" href="index.html">
+      <img class="mark" src="assets/nkr-logo.png" alt="NKR">
+      NKR<span class="accent">live</span>
+    </a>
+    <div class="nav-links" id="navLinks">
+      <a class="nav-link" href="index.html">Home</a>
+      <a class="nav-link active" href="nkr.html">NKR</a>
+      <a class="nav-link" href="distancemap.html">Distance Map</a>
+      <a class="nav-link" href="vizag.html">Vizag News</a>
+      <a class="nav-link" href="andhra.html">Andhra News</a>
+    </div>
+    <div class="nav-right">
+      <button class="theme-btn" id="themeBtn" aria-label="Toggle light/dark mode" title="Toggle theme">
+        <span class="theme-icon-moon">🌙</span>
+        <span class="theme-icon-sun">☀️</span>
+      </button>
+      <button class="nav-toggle" id="navToggle" aria-label="Toggle menu">☰</button>
+    </div>
+  </div>
+</nav>
+
+<div class="container">
+  <header class="page-head">
+    <h1 class="page-title">Nitish Kumar Reddy</h1>
+
+    <div class="status-strip" role="status" aria-live="polite">
+      <span class="beacon" id="beacon"></span>
+      <span id="connText">Connecting to live feed…</span>
+      <span class="sep">·</span>
+      <span id="syncTime">awaiting first update</span>
+    </div>
+  </header>
+
+  <!-- Profile card -->
+  <section class="panel profile-card">
+    <div class="profile-avatar"><img src="assets/nkr-avatar.jpg" alt="Nitish Kumar Reddy" onerror="this.style.display='none';this.parentElement.textContent='NKR';"></div>
+    <div>
+      <div class="profile-name">Nitish Kumar Reddy</div>
+      <div class="profile-meta">All-rounder · Sunrisers Hyderabad · Team India</div>
+    </div>
+    <div class="profile-stats">
+      <div class="profile-stat"><span class="num" id="statNextDate">—</span><span class="lbl">Next Match</span></div>
+    </div>
+  </section>
+
+  <!-- Current location + weather -->
+  <div class="nkr-panel" aria-labelledby="nkr-where-title">
+    <div class="nkr-header">
+      <div class="nkr-avatar">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 2C7.86 2 4.5 5.36 4.5 9.5c0 5.5 6.07 11.18 7.06 12.06.25.22.63.22.88 0C13.43 20.68 19.5 15 19.5 9.5 19.5 5.36 16.14 2 12 2z" fill="#fff"/>
+          <circle cx="12" cy="9.5" r="3.4" fill="currentColor"/>
+        </svg>
+      </div>
+      <div>
+        <div class="nkr-name" id="nkr-where-title">Where is NKR right now</div>
+        <div class="nkr-sub">Detected from the latest cricket &amp; news headlines</div>
+      </div>
+      <button class="refresh-btn" id="refreshBtn" style="margin-left:auto;">Refresh</button>
+    </div>
+
+    <div class="nkr-where">
+      <div class="nkr-where-head">
+        <span class="nkr-loc-badge" id="nkrLocBadge">Live</span>
+        <span>Current base &amp; conditions</span>
+      </div>
+      <div id="nkrWhereBody"><div class="nkr-where-loading">Checking latest headlines…</div></div>
+      <div class="nkr-where-src" id="nkrWhereSrc"></div>
+    <div id="cricLiveBadge" class="cric-live-badge" style="display:none"></div>
+    <div id="geminiCard"></div>
+    <div id="evidencePanel" style="display:none"></div>
+    </div>
+  </div>
+
+  <!-- Match Day Tracker -->
+  <section class="panel matchday-panel" id="nkrMatchDaySection" aria-labelledby="matchday-title" style="display:none;">
+    <h2 class="panel-title" id="matchday-title">🏏 NITISH KUMAR REDDY MATCH DAY TRACKER</h2>
+    <div id="nkrMatchDayBody"><div class="loader">Loading match day status…</div></div>
+  </section>
+
+  <!-- Fixtures -->
+  <section class="panel" aria-labelledby="fixtures-title">
+    <h2 class="panel-title" id="fixtures-title">Upcoming Fixtures <span class="tag muted">Next 5</span></h2>
+    <div id="nkrFixtures"><div class="nkr-where-loading">Loading schedule…</div></div>
+    <button class="cal-open-btn" id="calOpenBtn" aria-label="View full NKR schedule">
+      <span class="cal-icon">&#x1F4C5;</span>
+      <span class="cal-btn-text">Full NKR Schedule</span>
+      <span class="cal-btn-sub">All confirmed fixtures</span>
+      <span class="cal-arrow">&#x203A;</span>
+    </button>
+  </section>
+
+  <!-- Full Schedule Calendar Modal -->
+  <div class="cal-overlay" id="calOverlay" role="dialog" aria-modal="true" aria-labelledby="calTitle">
+    <div class="cal-modal">
+      <div class="cal-modal-head">
+        <div>
+          <div class="cal-modal-title" id="calTitle">&#x1F4C5; NKR Full Schedule</div>
+          <div class="cal-modal-sub">All confirmed fixtures &middot; Auto-updates as new series are announced</div>
+        </div>
+        <button class="cal-close-btn" id="calCloseBtn" aria-label="Close schedule">&#x2715;</button>
+      </div>
+      <div class="cal-tabs">
+        <button class="cal-tab active" data-filter="all">All</button>
+        <button class="cal-tab" data-filter="international">🌐 International</button>
+        <button class="cal-tab" data-filter="ipl">🏏 IPL</button>
+        <button class="cal-tab" data-filter="domestic">🏡 Domestic</button>
+      </div>
+      <div class="cal-body" id="calBody">
+        <div class="nkr-where-loading">Loading schedule…</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sticky search for NKR-only news -->
+  <div class="news-controls" role="search">
+    <input class="search-box" id="searchBox" type="search" aria-label="Search NKR headlines" placeholder="Search NKR headlines — SRH, ODI, England, runs…" />
+  </div>
+
+  <section class="news-section" aria-labelledby="nkr-news-title">
+    <h2 class="panel-title" id="nkr-news-title">Latest Headlines <span class="tag muted" id="newsCount">0 items</span></h2>
+    <div class="news-status" id="newsStatus" aria-live="polite">Waiting for live feed…</div>
+    <div class="news-list" id="newsBox"></div>
+    <div class="verify-note">
+      <b>Verified</b> — same story across two or more independent sources.
+      <b>Unverified</b> — single-source so far; cross-check before treating as confirmed.
+    </div>
+  </section>
+
+  <footer class="foot">
+    Location powered by <strong>NewsAPI</strong>, <strong>CricAPI</strong>, <strong>YouTube Data API</strong> &amp; <strong>Gemini AI</strong> — combined with Google News RSS, Instagram, Reddit, ESPNcricinfo &amp; more. Confidence merges rule-based scoring with Gemini's evidence synthesis.
+    Weather via <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a>.
+    Looking for general Vizag news? <a href="vizag.html">Open the City Desk →</a>
+  </footer>
+</div>
+
+<script src="shared.js"></script>
+<script>
+const newsBox    = document.getElementById('newsBox');
+const newsStatus = document.getElementById('newsStatus');
+const newsCount  = document.getElementById('newsCount');
+const beacon     = document.getElementById('beacon');
+const connText   = document.getElementById('connText');
+const syncTime   = document.getElementById('syncTime');
+const searchBox  = document.getElementById('searchBox');
+
+let allItems = [];
+let lastSync = null;
+
+// 24-hour rolling window — items older than this are hidden (auto-expire)
+const WINDOW_MS = 24 * 60 * 60 * 1000;
+
+function isWithin24h(item){
+  // Use pubDate (true article publish time) to decide freshness.
+  // Fall back to receivedAt (server ingestion time) if pubDate is missing.
+  const ts = item.pubDate || item.receivedAt;
+  if(!ts) return false;
+  return (Date.now() - new Date(ts).getTime()) < WINDOW_MS;
+}
+
+function matchesFilter(item){
+  const q = searchBox.value.trim().toLowerCase();
+  if(q && !item.title.toLowerCase().includes(q)) return false;
+  return true;
+}
+
+function renderAll(){
+  // 1. NKR-category only  2. within last 24 hours
+  const NKR_STRICT_RE = /nitish\s*(kumar)?\s*reddy|\bNKR\b/i;
+  const nkrItems = allItems.filter(i => 
+    i.category === 'nkr' && isWithin24h(i) && NKR_STRICT_RE.test(i.title)
+  );
+
+  const filtered = nkrItems.filter(matchesFilter);
+  filtered.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
+  newsBox.innerHTML = '';
+  if(filtered.length === 0){
+    const msg = allItems.filter(i => i.category === 'nkr').length > 0
+      ? '<div class="empty">No NKR headlines in the last 24 hours. Older stories have expired — new ones will appear as they come in.</div>'
+      : '<div class="empty">No NKR headlines yet. Listening live…</div>';
+    newsBox.innerHTML = msg;
+  } else {
+    filtered.forEach(item => newsBox.appendChild(vlBuildItemEl(item)));
+  }
+  newsCount.textContent = filtered.length + (filtered.length === 1 ? ' item' : ' items');
+}
+
+// Re-render every minute so items visually expire as they cross the 24h mark
+setInterval(renderAll, 60 * 1000);
+
+searchBox.addEventListener('input', renderAll);
+
+function updateSyncLabel(){
+  if(!lastSync) return;
+  syncTime.textContent = 'last update ' + vlTimeAgo(lastSync);
+}
+setInterval(updateSyncLabel, 5000);
+
+let _wsAlive = false;
+function connect(delay = 1500){
+  const proto = location.protocol === 'https:' ? 'wss://' : 'ws://';
+  const ws = new WebSocket(proto + location.host);
+  _wsAlive = false;
+
+  ws.onopen = () => {
+    _wsAlive = true;
+    beacon.classList.add('on');
+    connText.textContent = 'Live feed connected';
+    newsStatus.textContent = 'Connected — listening for updates…';
+  };
+  ws.onclose = () => {
+    _wsAlive = false;
+    beacon.classList.remove('on');
+    connText.textContent = 'Reconnecting…';
+    newsStatus.textContent = 'Connection lost — retrying…';
+    vlWsReconnect(connect, delay, null);
+  };
+  ws.onerror = () => { ws.close(); };
+  ws.onmessage = (event) => {
+    let msg;
+    try{ msg = JSON.parse(event.data); }catch(e){ return; }
+
+    if(msg.type === 'init'){
+      allItems = msg.items || [];
+      renderAll();
+      lastSync = new Date();
+      updateSyncLabel();
+      const NKR_STRICT_RE2 = /nitish\s*(kumar)?\s*reddy|\bNKR\b/i;
+      const count = allItems.filter(i => i.category === 'nkr' && isWithin24h(i) && NKR_STRICT_RE2.test(i.title)).length;
+      const total = allItems.filter(i => i.category === 'nkr').length;
+      const extraNote = (total > count) ? ` (${total - count} older than 24h hidden)` : '';
+      newsStatus.textContent = `${count} NKR headline${count===1?'':'s'} in last 24 hours${extraNote}. Listening live…`;
+    } else if(msg.type === 'news'){
+      const isNew = !allItems.find(i => i.id === msg.item.id);
+      if(isNew){
+        allItems.unshift(msg.item);
+        allItems = allItems.slice(0, 200);
+        allItems.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
+        renderAll();
+        lastSync = new Date();
+        updateSyncLabel();
+        // Only notify if it's NKR news AND within the 24h window
+        if(msg.item.category === 'nkr' && isWithin24h(msg.item)){
+          newsStatus.textContent = 'New NKR update just in';
+          const shortTitle = msg.item.title.length > 60
+            ? msg.item.title.substring(0, 58) + '…'
+            : msg.item.title;
+          vlShowToast(shortTitle);
+        }
+      }
+    } else if(msg.type === 'news_update'){
+      const existing = allItems.find(i => i.id === msg.item.id);
+      if(existing){
+        existing.verified = msg.item.verified;
+        existing.relatedSources = msg.item.relatedSources;
+        renderAll();
+      }
+    }
+  };
+}
+connect();
+vlWsVisibilityGuard(() => _wsAlive, () => connect(1500));
+
+/* ====================================================================
+   NKR STATUS — current location, local weather & next 5 matches
+==================================================================== */
+const nkrWhereBody = document.getElementById('nkrWhereBody');
+const nkrWhereSrc  = document.getElementById('nkrWhereSrc');
+const nkrFixtures  = document.getElementById('nkrFixtures');
+const refreshBtn   = document.getElementById('refreshBtn');
+const statNextDate = document.getElementById('statNextDate');
+
+function fmtFixtureDate(iso){
+  const d = new Date(iso + 'T00:00:00');
+  return {
+    day: d.toLocaleDateString('en-IN', { day: '2-digit' }),
+    mon: d.toLocaleDateString('en-IN', { month: 'short' })
+  };
+}
+
+/* ====================================================================
+   EVIDENCE FLOW PANEL — official / media / fan-social / vision signals
+==================================================================== */
+function renderEvidencePanel(location, gemini){
+  const panel = document.getElementById('evidencePanel');
+  const signals = (location && location.allSignals) || [];
+
+  if(!signals.length){
+    panel.style.display = 'none';
+    panel.innerHTML = '';
+    return;
+  }
+
+  const official = [], media = [], fan = [], vision = [];
+  signals.forEach(s => {
+    const name = s.sourceName || 'Unknown source';
+    if(s.isVision){
+      vision.push(name);
+    } else if(s.isFan){
+      fan.push(name);
+    } else if(/cricapi|bcci|srh|press conference|presser/i.test(name)){
+      official.push(name);
+    } else {
+      media.push(name);
+    }
+  });
+
+  const uniq = arr => [...new Set(arr)];
+  const chipRow = (items, cls) => items.length
+    ? uniq(items).map(n => `<span class="ev-chip ${cls}">${n}</span>`).join('')
+    : `<span class="ev-chip empty">none</span>`;
+
+  const conf = location.confidence || 0;
+  const confColor = conf >= 70 ? '#4caf50' : conf >= 40 ? '#d8a843' : '#e57373';
+
+  const fanBoostHtml = location.fanBoost > 0
+    ? `<div class="fan-boost-note">⚡ Diversity boost +${location.fanBoost}pts — multiple signal tiers agree</div>`
+    : '';
+
+  const geminiHtml = (gemini && gemini.reasoning)
+    ? `<div class="gemini-signal" style="margin-top:8px;">🤖 Gemini: ${gemini.reasoning}</div>`
+    : '';
+
+  const visionTierHtml = vision.length ? `
+        <div class="ev-tier">
+          <div class="ev-tier-icon">🔭</div>
+          <div>
+            <div class="ev-tier-label">Vision</div>
+            <div class="ev-chips">${chipRow(vision, 'vision')}</div>
+          </div>
+        </div>` : '';
+
+  panel.innerHTML = `
+    <div class="evidence-header" id="evidenceToggle">
+      <span id="evidenceToggleLabel">▸ Evidence Flow</span>
+      <span style="margin-left:auto;">${signals.length} signal${signals.length===1?'':'s'} detected</span>
+    </div>
+    <div class="evidence-body" id="evidenceBody" style="display:none;">
+      <div class="ev-flow">
+        <div class="ev-tier">
+          <div class="ev-tier-icon">🏛️</div>
+          <div>
+            <div class="ev-tier-label">Official</div>
+            <div class="ev-chips">${chipRow(official, 'official')}</div>
+          </div>
+        </div>
+        <div class="ev-tier">
+          <div class="ev-tier-icon">📰</div>
+          <div>
+            <div class="ev-tier-label">Media</div>
+            <div class="ev-chips">${chipRow(media, 'media')}</div>
+          </div>
+        </div>
+        <div class="ev-tier">
+          <div class="ev-tier-icon">👥</div>
+          <div>
+            <div class="ev-tier-label">Fan / Social</div>
+            <div class="ev-chips">${chipRow(fan, 'fan')}</div>
+          </div>
+        </div>
+        ${visionTierHtml}
+        <div class="ev-arrow">↓</div>
+        <div class="ev-result">
+          <span class="ev-result-city">📍 ${location.city}</span>
+          <span class="ev-result-conf" style="color:${confColor}">${conf}% confidence · ${signals.length} signal${signals.length===1?'':'s'}</span>
+        </div>
+        ${fanBoostHtml}
+        ${geminiHtml}
+      </div>
+    </div>`;
+  panel.style.display = '';
+
+  const header = document.getElementById('evidenceToggle');
+  const body   = document.getElementById('evidenceBody');
+  const label  = document.getElementById('evidenceToggleLabel');
+  header.addEventListener('click', () => {
+    const isOpen = body.style.display !== 'none';
+    body.style.display = isOpen ? 'none' : '';
+    label.textContent = (isOpen ? '▸' : '▾') + ' Evidence Flow';
+  });
+}
+
+/* ====================================================================
+   LOCAL CLOCK — live time at NKR's currently detected location
+==================================================================== */
+let nkrClockInterval = null;
+function startNkrLocalClock(tz){
+  const el = document.getElementById('nkrLocalTime');
+  if(!el) return;
+  if(nkrClockInterval){ clearInterval(nkrClockInterval); nkrClockInterval = null; }
+
+  if(!tz){
+    el.textContent = '';
+    return;
+  }
+
+  function tick(){
+    try{
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString('en-IN', { timeZone: tz, hour: '2-digit', minute: '2-digit', hour12: true });
+      const dateStr = now.toLocaleDateString('en-IN', { timeZone: tz, weekday: 'short', day: '2-digit', month: 'short' });
+      el.textContent = `🕒 ${timeStr} local · ${dateStr}`;
+    }catch(e){
+      el.textContent = '';
+      if(nkrClockInterval){ clearInterval(nkrClockInterval); nkrClockInterval = null; }
+    }
+  }
+  tick();
+  nkrClockInterval = setInterval(tick, 1000);
+}
+
+async function loadNkrStatus(force = false){
+  try{
+    const res = await fetch('/api/nkr-status' + (force ? '?refresh=1' : ''));
+    const data = await res.json();
+
+    const loc = data.location;
+    if(loc){
+      let wxHtml = '';
+      if(data.weather && data.weather.current){
+        const c = data.weather.current;
+        const icon = vlWmoEmoji(c.weather_code);
+        const condText = vlWmoLabel(c.weather_code);
+        wxHtml = `
+          <div class="nkr-where-wx">
+            <div style="font-size:30px;line-height:1;">${icon}</div>
+            <div>
+              <div class="nkr-where-temp">${Math.round(c.temperature_2m)}°C</div>
+              <div class="nkr-where-cond">${condText}</div>
+              <div class="nkr-where-wxmeta">Feels ${Math.round(c.apparent_temperature)}°C · ${c.relative_humidity_2m}% humidity<br>Wind ${Math.round(c.wind_speed_10m)} km/h</div>
+            </div>
+          </div>`;
+      } else {
+        wxHtml = `<div class="nkr-where-wxmeta">Weather unavailable</div>`;
+      }
+
+      // Confidence display
+      const conf = loc.confidence || 0;
+      const confClass = conf >= 70 ? 'conf-high' : conf >= 40 ? 'conf-med' : 'conf-low';
+      const confLabel = conf >= 70 ? 'High confidence' : conf >= 40 ? 'Moderate confidence' : conf > 0 ? 'Low confidence' : 'Default (no signal)';
+      const srcCount = loc.sourceCount || 0;
+
+      // Below this threshold we no longer present the location as a
+      // confirmed "LIVE" position — chained/presumed guesses (e.g. IPL/SRH
+      // context bleeding into an India-squad window) are too unreliable to
+      // show as fact.
+      const CONFIDENCE_DISPLAY_THRESHOLD = 60;
+      const locBadge = document.getElementById('nkrLocBadge');
+      if (locBadge) {
+        if (conf >= CONFIDENCE_DISPLAY_THRESHOLD) {
+          locBadge.textContent = 'Live';
+          locBadge.classList.remove('unverified');
+        } else {
+          locBadge.textContent = 'Unverified';
+          locBadge.classList.add('unverified');
+        }
+      }
+
+      const confHtml = conf > 0 ? `
+        <div class="conf-bar-wrap ${confClass}">
+          <div class="conf-label">LOCATION CONFIDENCE</div>
+          <div style="display:flex;align-items:center;">
+            <div class="conf-bar-bg" style="flex:1"><div class="conf-bar-fill" style="width:${conf}%"></div></div>
+            <span class="conf-score">${conf}%</span>
+          </div>
+          <div class="conf-sources">${confLabel} · ${srcCount} signal${srcCount===1?'':'s'} detected</div>
+        </div>` : `<div class="conf-sources" style="margin-top:8px;font-style:italic;">No recent location signals — defaulting to home base</div>`;
+
+      // Signal breakdown
+      const signals = loc.allSignals || [];
+      const signalRows = signals.map(s => {
+        const sc = s.confidence >= 70 ? '#4caf50' : s.confidence >= 40 ? '#d8a843' : '#e57373';
+        const age = s.pubDate ? vlTimeAgo(new Date(s.pubDate)) : '—';
+        return `<tr>
+          <td><span class="sig-mini-bar" style="width:${s.confidence*0.5}px;background:${sc}"></span>${s.city}</td>
+          <td style="color:var(--ink-dim)">${s.sourceName}</td>
+          <td style="color:${sc};font-family:var(--font-mono)">${s.confidence}%</td>
+          <td style="color:var(--ink-dim)">${age}</td>
+        </tr>`;
+      }).join('');
+      const signalTableHtml = signals.length > 0 ? `
+        <details class="sig-details">
+          <summary>${signals.length} signal${signals.length===1?'':'s'} breakdown</summary>
+          <table class="signal-table">
+            <thead><tr><th>Location</th><th>Source</th><th>Conf.</th><th>Age</th></tr></thead>
+            <tbody>${signalRows}</tbody>
+          </table>
+        </details>` : '';
+
+      const fixtureBadge = loc.isFixtureBased
+        ? `<span style="display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:10.5px;font-family:var(--font-mono);letter-spacing:.03em;background:rgba(76,175,80,0.12);color:#4caf50;border:1px solid rgba(76,175,80,0.3);">With India squad</span>`
+        : '';
+
+      nkrWhereBody.innerHTML = `
+        <div class="nkr-where-body">
+          <div class="nkr-where-place">
+            <div class="nkr-where-city">${loc.flag} ${loc.city}${fixtureBadge}</div>
+            <div class="nkr-where-venue">🏟️ ${loc.venue}</div>
+            <div class="nkr-where-localtime" id="nkrLocalTime">—</div>
+          </div>
+          ${wxHtml}
+        </div>
+        <div class="nkr-where-extra">
+          ${confHtml}
+          ${signalTableHtml}
+        </div>`;
+
+      if(loc.detectedFrom){
+        const link = loc.detectedFromLink
+          ? `<a href="${loc.detectedFromLink}" target="_blank" rel="noopener">${loc.detectedFrom}</a>`
+          : loc.detectedFrom;
+        const prefix = loc.isFixtureBased
+          ? 'Inferred from India squad fixture schedule: '
+          : 'Detected from: ';
+        nkrWhereSrc.innerHTML = `${prefix}${link}`;
+      } else {
+        nkrWhereSrc.innerHTML = `No recent location signal in headlines — showing home base (Visakhapatnam).`;
+      }
+
+      // ── Gemini AI reasoning card ──────────────────────────────────────────
+      const geminiEl = document.getElementById('geminiCard');
+      if(data.location.gemini){
+        const g = data.location.gemini;
+        const gc = g.confidence >= 70 ? '#4caf50' : g.confidence >= 40 ? '#d8a843' : '#e57373';
+        geminiEl.innerHTML = `
+          <div class="gemini-card">
+            <div class="gemini-label">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+              Gemini AI · Location Intelligence
+            </div>
+            <div>
+              <span class="gemini-city">${g.city}</span>
+              <span class="gemini-conf" style="color:${gc}">${g.confidence}% confidence</span>
+            </div>
+            <div class="gemini-reason">${g.reasoning || ''}</div>
+            ${g.primarySignal ? `<div class="gemini-signal">📌 Key signal: ${g.primarySignal}</div>` : ''}
+          </div>`;
+        geminiEl.style.display = '';
+      } else {
+        geminiEl.innerHTML = '';
+        geminiEl.style.display = 'none';
+      }
+
+      // ── CricAPI live match badge ──────────────────────────────────────────
+      const cricEl = document.getElementById('cricLiveBadge');
+      const hasCricSignal = (loc.allSignals || []).some(s => s.sourceName && s.sourceName.startsWith('CricAPI'));
+      if(hasCricSignal){
+        const cricSig = (loc.allSignals || []).find(s => s.sourceName && s.sourceName.startsWith('CricAPI'));
+        cricEl.innerHTML = `<span class="cric-live-dot"></span>CricAPI · Live match venue confirmed`;
+        cricEl.style.display = 'inline-flex';
+      } else {
+        cricEl.style.display = 'none';
+      }
+
+      // ── Evidence flow panel ────────────────────────────────────────────────
+      renderEvidencePanel(data.location, data.location.gemini);
+
+      // Live local clock for NKR's current location
+      const tz = (data.weather && data.weather.timezone) || null;
+      startNkrLocalClock(tz);
+    }
+
+    if(data.allFixtures) allFixturesData = data.allFixtures;
+    if(data.nextMatches && data.nextMatches.length){
+      nkrFixtures.innerHTML = '';
+      data.nextMatches.forEach((f, idx) => {
+        const { day, mon } = fmtFixtureDate(f.date);
+        if(idx === 0){
+          statNextDate.textContent = `${day} ${mon}`;
+        }
+        const row = document.createElement('div');
+        row.className = 'nkr-fx-row' + (f.status === 'completed' ? ' completed' : '');
+        row.innerHTML = `
+          <div class="nkr-fx-date"><b>${day}</b>${mon}</div>
+          <div class="nkr-fx-info">
+            <div class="nkr-fx-match">${f.match}</div>
+            <div class="nkr-fx-meta">${f.flag} ${f.venue}, ${f.city} · ${f.timeLocal ? `<span class="nkr-fx-time-local">${f.timeLocal}</span> &middot; <span class="nkr-fx-time-ist">${f.timeIST}</span>` : `<span class="nkr-fx-time-ist">${f.timeIST}</span>`}</div>
+          </div>
+          <span class="nkr-fx-tag">${f.format}${f.status === 'completed' ? ' · played' : ''}</span>`;
+        nkrFixtures.appendChild(row);
+      });
+    } else {
+      nkrFixtures.innerHTML = '<div class="empty">No upcoming matches scheduled.</div>';
+    }
+  }catch(e){
+    nkrWhereBody.innerHTML = '<div class="nkr-where-wxmeta">Unable to load NKR status right now.</div>';
+    nkrFixtures.innerHTML = '<div class="empty">Unable to load schedule right now.</div>';
+  }
+}
+
+refreshBtn.addEventListener('click', () => {
+  nkrWhereBody.innerHTML = '<div class="nkr-where-loading">Refreshing…</div>';
+  loadNkrStatus(true);
+});
+
+
+/* ====================================================================
+   FULL SCHEDULE CALENDAR
+==================================================================== */
+let allFixturesData = [];
+
+function getCategoryLabel(cat) {
+  if (cat === 'ipl')           return { label: 'IPL', color: '#f97316' };
+  if (cat === 'domestic')      return { label: 'Domestic', color: '#8b5cf6' };
+  return                              { label: 'International', color: '#0ea5e9' };
+}
+
+function buildCalendar(fixtures, filter) {
+  const filtered = filter === 'all' ? fixtures : fixtures.filter(f => f.category === filter);
+  if (!filtered || !filtered.length) {
+    if (filter === 'ipl') {
+      return '<div class="empty">IPL 2027 schedule has not been announced yet. The BCCI window is Mar 14 – May 30, 2027 — fixtures will appear here automatically once released.</div>';
+    }
+    return '<div class="empty">No fixtures found.</div>';
+  }
+
+  // Group by match teams (series)
+  const seriesMap = {};
+  filtered.forEach(f => {
+    if (!seriesMap[f.match]) seriesMap[f.match] = [];
+    seriesMap[f.match].push(f);
+  });
+
+  let html = '';
+  Object.entries(seriesMap).forEach(([teamName, matches]) => {
+    const today    = new Date().toDateString();
+    const allDone  = matches.every(m => m.status === 'completed');
+    const anyToday = matches.some(m => new Date(m.date + 'T00:00:00').toDateString() === today && m.status !== 'completed');
+    const catInfo  = getCategoryLabel(matches[0].category);
+    const hasUpcoming = matches.some(m => m.status !== 'completed');
+
+    if (allDone || !hasUpcoming) return; // hide series once every match has been played
+    html += '<div class="cal-series">';
+    html += '<div class="cal-series-head">';
+    html += '<span class="cal-series-flag">' + matches[0].flag + '</span>';
+    html += '<span class="cal-series-name">' + teamName + '</span>';
+    html += '<span class="cal-cat-pill" style="background:' + catInfo.color + '33;border-color:' + catInfo.color + ';color:' + catInfo.color + '">' + catInfo.label + '</span>';
+    if (anyToday) html += '<span class="cal-live-pill">TODAY</span>';
+    html += '</div><div class="cal-matches">';
+
+    matches.forEach(f => {
+      const isDone  = f.status === 'completed';
+      if (isDone) return; // hide individual played matches once the day is over
+
+      const d       = new Date(f.date + 'T00:00:00');
+      const dayNum  = d.toLocaleDateString('en-IN', { day: '2-digit' });
+      const mon     = d.toLocaleDateString('en-IN', { month: 'short' });
+      const weekday = d.toLocaleDateString('en-IN', { weekday: 'short' });
+      const isToday = d.toDateString() === today;
+
+      html += '<div class="cal-match-row' + (isToday ? ' cal-today' : '') + '">';
+      html += '<div class="cal-match-date"><b>' + dayNum + '</b><span>' + mon + '</span><span class="cal-weekday">' + weekday + '</span></div>';
+      html += '<div class="cal-match-info">';
+      html += '<div class="cal-match-format">' + f.format + '</div>';
+      html += '<div class="cal-match-venue">' + f.venue + ', ' + f.city + '</div>';
+      html += '<div class="cal-match-time">';
+      if (f.timeLocal) html += '<span class="cal-time-local">' + f.timeLocal + '</span> &middot; ';
+      html += '<span class="cal-time-ist">' + f.timeIST + '</span>';
+      html += '</div></div>';
+      html += '<div class="cal-match-status">';
+      if (isToday) html += '<span class="cal-pill today">Today</span>';
+      else         html += '<span class="cal-pill upcoming">Soon</span>';
+      html += '</div></div>';
+    });
+
+    html += '</div></div>';
+  });
+  return html;
+}
+
+let calFilter = 'all';
+
+function renderCalendar() {
+  const body = document.getElementById('calBody');
+  // update tab active states
+  document.querySelectorAll('.cal-tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.filter === calFilter);
+  });
+  body.innerHTML = buildCalendar(allFixturesData, calFilter);
+}
+
+function openCalendar() {
+  document.getElementById('calOverlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  const body = document.getElementById('calBody');
+  if (allFixturesData.length) {
+    renderCalendar();
+  } else {
+    body.innerHTML = '<div class="nkr-where-loading">Loading\u2026</div>';
+    fetch('/api/nkr-status').then(r => r.json()).then(data => {
+      if (data.allFixtures) { allFixturesData = data.allFixtures; }
+      renderCalendar();
+    }).catch(() => { body.innerHTML = '<div class="empty">Unable to load schedule.</div>'; });
+  }
+}
+
+function closeCalendar() {
+  document.getElementById('calOverlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+document.getElementById('calOpenBtn').addEventListener('click', openCalendar);
+document.getElementById('calCloseBtn').addEventListener('click', closeCalendar);
+document.querySelectorAll('.cal-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    calFilter = tab.dataset.filter;
+    if (allFixturesData.length) renderCalendar();
+  });
+});
+document.getElementById('calOverlay').addEventListener('click', e => {
+  if (e.target.id === 'calOverlay') closeCalendar();
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeCalendar(); });
+
+loadNkrStatus();
+let _nkrPollTimer = setInterval(() => loadNkrStatus(false), 5 * 60 * 1000);
+
+// Re-poll immediately when tab becomes visible again (mobile background fix)
+let _nkrLastPoll = Date.now();
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && Date.now() - _nkrLastPoll > 4 * 60 * 1000) {
+    loadNkrStatus(false);
+    _nkrLastPoll = Date.now();
+  }
+});
+
+// ===== NKR MATCH DAY TRACKER (v2.1) =====
+
+let _mdPrev = null;        // last rendered data — for diff-based toast notifications
+let _mdCountdownTimer = null;  // handle for the live countdown setInterval
+let _mdPollTimer = null;  // handle for the adaptive poll setTimeout
+
+function mdFmt(n, decimals = 2) {
+  // Safe numeric formatter — returns em-dash if null so the UI stays tidy
+  if (n === null || n === undefined) return '—';
+  return Number(n).toFixed(decimals);
+}
+
+// Format milliseconds remaining as HH:MM:SS
+function mdFmtCountdown(ms) {
+  if (ms <= 0) return '00:00:00';
+  const s = Math.floor(ms / 1000);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  const pad = n => String(n).padStart(2, '0');
+  return `${pad(h)}:${pad(m)}:${pad(sec)}`;
+}
+
+function mdClearCountdown() {
+  if (_mdCountdownTimer) { clearInterval(_mdCountdownTimer); _mdCountdownTimer = null; }
+}
+
+function mdStartCountdown(startUTC) {
+  mdClearCountdown();
+  const el = document.getElementById('mdCountdown');
+  if (!el || !startUTC) return;
+  const target = new Date(startUTC).getTime();
+  function tick() {
+    const remaining = target - Date.now();
+    el.textContent = remaining > 0 ? mdFmtCountdown(remaining) : 'Starting soon…';
+  }
+  tick();
+  _mdCountdownTimer = setInterval(tick, 1000);
+}
+
+// Convert a UTC ms timestamp to a human-readable IST time string
+function mdUTCtoIST(ms) {
+  const d = new Date(ms + 5.5 * 60 * 60 * 1000); // UTC → IST
+  return d.toISOString().replace('T', ' ').slice(0, 16) + ' IST';
+}
+
+function renderMatchDay(data) {
+  const section = document.getElementById('nkrMatchDaySection');
+  const body = document.getElementById('nkrMatchDayBody');
+  if (!section || !body) return;
+
+  mdClearCountdown();
+
+  if (!data || !data.isMatchDay) {
+    section.style.display = 'none';
+    return;
+  }
+
+  section.style.display = '';
+  const f = data.fixture || {};
+  const phase = data.phase;
+  let html = '';
+
+  // ── Phase: PRE-TOSS ──
+  if (phase === 'pre-toss') {
+    html += `<div class="md-header">
+      <span class="md-badge amber"><span class="md-dot"></span>🏏 NKR MATCH DAY</span>
+    </div>
+    <div class="md-match">Match: ${f.match || '—'}</div>
+    <div class="md-meta">${f.format || ''} · ${f.venue || ''}, ${f.city || ''} ${f.flag || ''}</div>
+    <div class="md-meta" style="margin-top:4px;">Status: 🟡 Awaiting Toss</div>
+    <div class="md-meta" style="margin-top:2px;">Playing XI: Not Announced Yet</div>`;
+
+    if (data.matchStartUTC) {
+      html += `<div class="md-countdown-wrap">
+        <div class="md-countdown-label">Match starts in</div>
+        <div class="md-countdown" id="mdCountdown">—</div>
+      </div>`;
+    }
+  }
+
+  // ── Phase: XI-PENDING (toss done but no explicit XI confirmation yet) ──
+  else if (phase === 'xi-pending') {
+    html += `<div class="md-header">
+      <span class="md-badge muted"><span class="md-dot"></span>🏏 NKR MATCH DAY</span>
+    </div>
+    <div class="md-match">Match: ${f.match || '—'}</div>
+    <div class="md-meta">${f.format || ''} · ${f.venue || ''}, ${f.city || ''} ${f.flag || ''}</div>`;
+    if (data.toss) {
+      html += `<div class="md-meta" style="margin-top:4px;">🪙 Toss: ${data.toss.winner} chose to ${data.toss.decision}</div>`;
+    }
+    html += `<div class="md-notify">🔎 Confirming Playing XI — checking official squad announcement…</div>`;
+  }
+
+  // ── Phase: NOT-PLAYING ──
+  else if (phase === 'not-playing') {
+    const reason = data.playingXI && data.playingXI.reason ? data.playingXI.reason : 'Not officially announced';
+    html += `<div class="md-header">
+      <span class="md-badge red"><span class="md-dot"></span>🔴 NKR NOT PLAYING TODAY</span>
+    </div>
+    <div class="md-match">Match: ${f.match || '—'}</div>
+    <div class="md-meta">${f.format || ''} · ${f.venue || ''}, ${f.city || ''} ${f.flag || ''}</div>
+    <div class="md-notify" style="margin-top:10px;">🔔 NKR not included in Playing XI</div>
+    <div class="md-reason">Reason: <b>${reason}</b></div>`;
+  }
+
+  // ── Phase: PLAYING-LIVE ──
+  else if (phase === 'playing-live') {
+    html += `<div class="md-header">
+      <span class="md-badge green"><span class="md-dot"></span>🟢 NKR PLAYING TODAY</span>
+    </div>
+    <div class="md-match">Match: ${f.match || '—'}</div>
+    <div class="md-meta">${f.format || ''} · ${f.venue || ''}, ${f.city || ''} ${f.flag || ''}</div>
+    <div class="md-role">Role: ${(data.playingXI && data.playingXI.role) || 'Batting All-Rounder'}</div>`;
+
+    const live = data.live;
+    if (live) {
+      // ── Batting sub-card ──
+      if (live.batting) {
+        const b = live.batting;
+        const notOutStr = b.notOut ? '*' : '';
+        html += `<div class="md-sub-card">
+          <div class="md-sub-title"><span class="md-live-dot"></span>🏏 NKR BATTING LIVE</div>
+          <div class="md-stat-grid">
+            <div class="md-stat"><span class="num">${b.runs}${notOutStr}</span><span class="lbl">Runs</span></div>
+            <div class="md-stat"><span class="num">(${b.balls})</span><span class="lbl">Balls</span></div>
+            <div class="md-stat"><span class="num">${b.fours}</span><span class="lbl">4s</span></div>
+            <div class="md-stat"><span class="num">${b.sixes}</span><span class="lbl">6s</span></div>
+          </div>
+          <div class="md-meta" style="margin-top:10px;">Strike Rate: ${mdFmt(b.strikeRate, 2)}</div>
+        </div>`;
+      }
+      // ── Bowling sub-card ──
+      if (live.bowling && live.bowling.overs > 0) {
+        const bw = live.bowling;
+        html += `<div class="md-sub-card">
+          <div class="md-sub-title"><span class="md-live-dot"></span>🎯 NKR BOWLING LIVE</div>
+          <div class="md-stat-grid">
+            <div class="md-stat"><span class="num">${mdFmt(bw.overs, 1)}</span><span class="lbl">Overs</span></div>
+            <div class="md-stat"><span class="num">${bw.runsConceded}</span><span class="lbl">Runs</span></div>
+            <div class="md-stat"><span class="num">${bw.wickets}</span><span class="lbl">Wickets</span></div>
+            <div class="md-stat"><span class="num">${mdFmt(bw.economy, 2)}</span><span class="lbl">Economy</span></div>
+          </div>
+        </div>`;
+      }
+      // ── Fielding ──
+      if (live.catches > 0) {
+        html += `<div><span class="md-catch-pill">🧤 ${live.catches === 1 ? 'Catch Taken' : live.catches + ' Catches Taken'}</span></div>`;
+      }
+    }
+  }
+
+  // ── Phase: COMPLETED ──
+  else if (phase === 'completed') {
+    const perf = data.performance || {};
+    const expiryIST = perf.completedAt ? mdUTCtoIST(perf.completedAt + 12 * 3600 * 1000) : null;
+    html += `<div class="md-header">
+      <span class="md-badge muted"><span class="md-dot"></span>📊 NKR MATCH PERFORMANCE</span>
+    </div>
+    <div class="md-match">Match: ${f.match || '—'}</div>
+    <div class="md-meta">${f.format || ''} · ${f.venue || ''}, ${f.city || ''} ${f.flag || ''}</div>
+    <div class="md-sub-card" style="margin-top:14px;">
+      <div class="md-perf-row"><span class="lbl">🏏 Batting</span><span class="val">${perf.battingLine || '—'}</span></div>
+      <div class="md-perf-row"><span class="lbl">🎯 Bowling</span><span class="val">${perf.bowlingLine || '—'}</span></div>
+      ${perf.catches > 0 ? `<div class="md-perf-row"><span class="lbl">🧤 Catches</span><span class="val">${perf.catches}</span></div>` : ''}
+      ${perf.result ? `<div class="md-perf-row"><span class="lbl">🏆 Result</span><span class="val">${perf.result}</span></div>` : ''}
+    </div>
+    ${expiryIST ? `<div class="md-perf-expiry">Auto-hidden after ${expiryIST}</div>` : ''}`;
+  }
+
+  // ── API note (if present) ──
+  if (data.note) {
+    html += `<div class="md-note">ℹ️ ${data.note}</div>`;
+  }
+
+  body.innerHTML = html;
+
+  // Start live countdown after injecting the DOM
+  if (phase === 'pre-toss' && data.matchStartUTC) {
+    mdStartCountdown(data.matchStartUTC);
+  }
+}
+
+// Fires vlShowToast() for transitions detected since the last poll.
+// All comparisons are one-way (prev → current) so no toast is re-fired
+// if the user simply reloads the page to the same state.
+function diffAndNotify(curr, prev) {
+  if (!curr || !curr.isMatchDay) return;
+  const prevPhase = prev && prev.phase;
+  const phase = curr.phase;
+  const prevXI = prev && prev.playingXI && prev.playingXI.status;
+  const currXI = curr.playingXI && curr.playingXI.status;
+
+  // ── Playing XI notifications (fires exactly once on transition) ──
+  if (currXI === 'in' && prevXI !== 'in') {
+    vlShowToast('🔔 NKR included in Playing XI');
+  }
+  if (currXI === 'out' && prevXI !== 'out') {
+    vlShowToast('🔔 NKR not included in Playing XI');
+  }
+
+  // ── Batting notifications ──
+  const prevBat = prev && prev.live && prev.live.batting;
+  const currBat = curr.live && curr.live.batting;
+  if (currBat && !prevBat) {
+    vlShowToast('🏏 NKR comes to bat');
+  }
+  if (currBat) {
+    const prevRuns = prevBat ? prevBat.runs : 0;
+    const currRuns = currBat.runs;
+    for (const milestone of [25, 50, 100]) {
+      if (prevRuns < milestone && currRuns >= milestone) {
+        vlShowToast(`🏏 NKR reaches ${milestone} runs!`);
+      }
+    }
+  }
+
+  // ── Bowling notifications ──
+  const prevBowl = prev && prev.live && prev.live.bowling;
+  const currBowl = curr.live && curr.live.bowling;
+  if (currBowl) {
+    const prevW = prevBowl ? prevBowl.wickets : 0;
+    const currW = currBowl.wickets;
+    for (const target of [1, 2, 3]) {
+      if (prevW < target && currW >= target) {
+        vlShowToast(`🎯 NKR takes ${target === 1 ? 'a' : target} wicket${target === 1 ? '' : 's'}!`);
+      }
+    }
+    // 4-for and 5-for get their own toast if crossed in one poll
+    if (prevW < 4 && currW >= 4) vlShowToast(`🎯 NKR takes ${currW} wickets!`);
+  }
+
+  // ── Catch notifications ──
+  const prevCatches = (prev && prev.live && prev.live.catches) || 0;
+  const currCatches = (curr.live && curr.live.catches) || 0;
+  if (currCatches > prevCatches) {
+    vlShowToast('🧤 NKR takes a catch!');
+  }
+}
+
+async function loadMatchDay() {
+  try {
+    const res = await fetch('/api/nkr-matchday');
+    const data = await res.json();
+    renderMatchDay(data);
+    diffAndNotify(data, _mdPrev);
+    _mdPrev = data;
+
+    // Adaptive poll delay: faster when the match is live
+    let delay;
+    if (!data.isMatchDay) delay = 5 * 60 * 1000;              // 5 min — not a match day
+    else if (data.phase === 'playing-live') delay = 15 * 1000; // 15 s — real-time feel
+    else if (data.phase === 'completed') delay = 60 * 1000;    // 60 s — winding down
+    else delay = 30 * 1000;                                    // 30 s — pre-toss / xi / not-playing
+
+    if (_mdPollTimer) clearTimeout(_mdPollTimer);
+    _mdPollTimer = setTimeout(loadMatchDay, delay);
+  } catch (e) {
+    // Silently back off and retry in 60s on network error
+    if (_mdPollTimer) clearTimeout(_mdPollTimer);
+    _mdPollTimer = setTimeout(loadMatchDay, 60 * 1000);
+  }
+}
+
+// Kick off the first poll right away
+loadMatchDay();
+
+// Re-poll immediately on tab focus (mirrors the existing nkr-status pattern)
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) {
+    if (_mdPollTimer) clearTimeout(_mdPollTimer);
+    loadMatchDay();
+  }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Live Visakhapatnam news — general, sports, civic, politics, crime, achievements and agriculture — Vizag only.">
+<title>Vizag News — NKRlive</title>
+<link rel="icon" href="assets/nkr-logo.png" type="image/png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+<style>
+  .cat-strip{ display:grid; grid-template-columns:repeat(8,1fr); gap:10px; margin-bottom:14px; }
+  @media (max-width:900px){ .cat-strip{ grid-template-columns:repeat(4,1fr); } }
+  @media (max-width:620px){ .cat-strip{ grid-template-columns:repeat(2,1fr); } }
+  .cat-card{
+    border:1px solid var(--line); border-radius:var(--radius-sm);
+    background:var(--panel); padding:12px 14px; text-align:left;
+    cursor:pointer; transition:all .15s; backdrop-filter:blur(6px);
+  }
+  .cat-card:hover{ border-color:rgba(91,196,182,0.35); }
+  .cat-card.active{ border-color:var(--teal); background:rgba(91,196,182,0.08); }
+  .cat-card .cat-num{ font-family:var(--font-display); font-weight:600; font-size:22px; }
+  .cat-card .cat-lbl{ font-family:var(--font-mono); font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--ink-faint); margin-top:2px; }
+  .filter-row{ align-items:center; }
+  .chip.verified-toggle{ margin-left:auto; }
+  .chip.verified-toggle.active{ background:var(--brass); color:#241a06; border-color:var(--brass); }
+</style>
+</head>
+<body>
+<div id="toast-container" aria-live="polite" aria-atomic="false"></div>
+
+<nav class="topnav">
+  <div class="topnav-inner">
+    <a class="nav-brand" href="index.html">
+      <img class="mark" src="assets/nkr-logo.png" alt="NKR">
+      NKR<span class="accent">live</span>
+    </a>
+    <div class="nav-links" id="navLinks">
+      <a class="nav-link" href="index.html">Home</a>
+      <a class="nav-link" href="nkr.html">NKR</a>
+      <a class="nav-link" href="distancemap.html">Distance Map</a>
+      <a class="nav-link active" href="vizag.html">Vizag News</a>
+      <a class="nav-link" href="andhra.html">Andhra News</a>
+    </div>
+    <div class="nav-right">
+      <button class="theme-btn" id="themeBtn" aria-label="Toggle light/dark mode" title="Toggle theme">
+        <span class="theme-icon-moon">🌙</span>
+        <span class="theme-icon-sun">☀️</span>
+      </button>
+      <button class="nav-toggle" id="navToggle" aria-label="Toggle menu">☰</button>
+    </div>
+  </div>
+</nav>
+
+<div class="container">
+  <header class="page-head">
+    <h1 class="page-title">Vizag News</h1>
+    <div class="status-strip" role="status" aria-live="polite">
+      <span class="beacon" id="beacon"></span>
+      <span id="connText">Connecting to live feed…</span>
+      <span class="sep">·</span>
+      <span id="syncTime">awaiting first update</span>
+    </div>
+  </header>
+
+  <!-- Category overview -->
+  <div class="cat-strip" id="catStrip" style="display:none;">
+    <button class="cat-card active" data-cat="all">
+      <div class="cat-num" id="catAll">0</div>
+      <div class="cat-lbl">All Stories</div>
+    </button>
+    <button class="cat-card" data-cat="general">
+      <div class="cat-num" id="catGeneral">0</div>
+      <div class="cat-lbl">General</div>
+    </button>
+    <button class="cat-card" data-cat="sports">
+      <div class="cat-num" id="catSports">0</div>
+      <div class="cat-lbl">Sports</div>
+    </button>
+    <button class="cat-card" data-cat="civic">
+      <div class="cat-num" id="catCivic">0</div>
+      <div class="cat-lbl">Civic</div>
+    </button>
+    <button class="cat-card" data-cat="politics">
+      <div class="cat-num" id="catPolitics">0</div>
+      <div class="cat-lbl">Politics</div>
+    </button>
+    <button class="cat-card" data-cat="crime">
+      <div class="cat-num" id="catCrime">0</div>
+      <div class="cat-lbl">Crime</div>
+    </button>
+    <button class="cat-card" data-cat="achievements">
+      <div class="cat-num" id="catAchievements">0</div>
+      <div class="cat-lbl">Achievements</div>
+    </button>
+    <button class="cat-card" data-cat="agriculture">
+      <div class="cat-num" id="catAgriculture">0</div>
+      <div class="cat-lbl">Agriculture</div>
+    </button>
+  </div>
+
+  <!-- Sticky news controls -->
+  <div class="news-controls" role="search">
+    <input class="search-box" id="searchBox" type="search" aria-label="Search headlines" placeholder="Search — GVMC, cricket, port, weather, police…" />
+    <div class="filter-row" id="filterRow" role="group" aria-label="Filter by category">
+      <button class="chip active" data-cat="all" aria-pressed="true">All</button>
+      <button class="chip" data-cat="general" aria-pressed="false">General</button>
+      <button class="chip" data-cat="sports" aria-pressed="false">Sports</button>
+      <button class="chip" data-cat="civic" aria-pressed="false">Civic</button>
+      <button class="chip" data-cat="politics" aria-pressed="false">Politics</button>
+      <button class="chip" data-cat="crime" aria-pressed="false">Crime</button>
+      <button class="chip" data-cat="achievements" aria-pressed="false">Achievements</button>
+      <button class="chip" data-cat="agriculture" aria-pressed="false">Agriculture</button>
+      <button class="chip verified-toggle" id="verifiedToggle" aria-pressed="false" title="Show only stories confirmed by 2+ independent sources">Verified only</button>
+    </div>
+  </div>
+
+  <section class="news-section" aria-labelledby="news-title">
+    <h2 class="panel-title" id="news-title">Vizag Feed <span class="tag muted" id="newsCount">0 items</span></h2>
+    <div class="news-status" id="newsStatus" aria-live="polite">Waiting for live feed…</div>
+    <div class="news-list" id="newsBox"></div>
+    <div class="verify-note">
+      <b>Verified</b> — same story across two or more independent sources.
+      <b>Unverified</b> — single-source so far; cross-check before treating as confirmed.
+      All stories are Visakhapatnam-specific. Sources polled every 12 s and pushed live.
+    </div>
+  </section>
+
+  <footer class="foot">
+    Strictly Visakhapatnam/Vizag news only — politics, sports, crime, civic and more.
+    For all of Andhra Pradesh: <a href="andhra.html">Andhra News →</a> · For NKR: <a href="nkr.html">NKR →</a>
+  </footer>
+</div>
+
+<script src="shared.js"></script>
+<script>
+const newsBox    = document.getElementById('newsBox');
+const newsStatus = document.getElementById('newsStatus');
+const newsCount  = document.getElementById('newsCount');
+const beacon     = document.getElementById('beacon');
+const connText   = document.getElementById('connText');
+const syncTime   = document.getElementById('syncTime');
+const searchBox  = document.getElementById('searchBox');
+const filterRow  = document.getElementById('filterRow');
+const catStrip   = document.getElementById('catStrip');
+const verifiedToggle = document.getElementById('verifiedToggle');
+
+let allItems = [];
+let activeCat = 'all';
+let verifiedOnly = false;
+let lastSync  = null;
+
+// Vizag page: show only items that mention Vizag/Visakhapatnam in title
+// AND are in Vizag-specific categories (not NKR, not andhra-general)
+const VIZAG_CATS = new Set(['general','sports','civic','politics','crime','achievements','agriculture']);
+
+const VIZAG_RE = /vizag|visakhapatnam|waltair|gajuwaka|rushikonda|simhachalam|bheemili|gvmc/i;
+
+function isVizagItem(item) {
+  // Must be a vizag-scoped category AND headline must mention Vizag
+  return VIZAG_CATS.has(item.category) && VIZAG_RE.test(item.title);
+}
+
+function matchesFilter(item) {
+  if (activeCat !== 'all' && item.category !== activeCat) return false;
+  if (verifiedOnly && !item.verified) return false;
+  const q = searchBox.value.trim().toLowerCase();
+  if (q && !item.title.toLowerCase().includes(q)) return false;
+  return true;
+}
+
+function updateCatStrip(items) {
+  const counts = { general:0, sports:0, civic:0, politics:0, crime:0, achievements:0, agriculture:0 };
+  items.forEach(i => { if (counts[i.category] !== undefined) counts[i.category]++; });
+  document.getElementById('catAll').textContent = items.length;
+  document.getElementById('catGeneral').textContent = counts.general;
+  document.getElementById('catSports').textContent = counts.sports;
+  document.getElementById('catCivic').textContent = counts.civic;
+  document.getElementById('catPolitics').textContent = counts.politics;
+  document.getElementById('catCrime').textContent = counts.crime;
+  document.getElementById('catAchievements').textContent = counts.achievements;
+  document.getElementById('catAgriculture').textContent = counts.agriculture;
+}
+
+function renderAll() {
+  const items = allItems.filter(isVizagItem);
+  updateCatStrip(items);
+  const filtered = items.filter(matchesFilter);
+  filtered.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
+  newsBox.innerHTML = '';
+  if (filtered.length === 0) {
+    newsBox.innerHTML = '<div class="empty">No Vizag headlines match this filter yet.</div>';
+  } else {
+    filtered.forEach(item => newsBox.appendChild(vlBuildItemEl(item)));
+  }
+  newsCount.textContent = filtered.length + (filtered.length === 1 ? ' item' : ' items');
+}
+
+function setActiveCat(cat) {
+  activeCat = cat;
+  filterRow.querySelectorAll('.chip[data-cat]').forEach(c => {
+    const on = c.dataset.cat === cat;
+    c.classList.toggle('active', on);
+    c.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
+  catStrip.querySelectorAll('.cat-card').forEach(c => {
+    c.classList.toggle('active', c.dataset.cat === cat);
+  });
+  renderAll();
+}
+
+searchBox.addEventListener('input', renderAll);
+filterRow.addEventListener('click', e => {
+  const verifiedBtn = e.target.closest('#verifiedToggle');
+  if (verifiedBtn) {
+    verifiedOnly = !verifiedOnly;
+    verifiedBtn.classList.toggle('active', verifiedOnly);
+    verifiedBtn.setAttribute('aria-pressed', verifiedOnly ? 'true' : 'false');
+    renderAll();
+    return;
+  }
+  const btn = e.target.closest('.chip[data-cat]');
+  if (!btn) return;
+  setActiveCat(btn.dataset.cat);
+});
+catStrip.addEventListener('click', e => {
+  const btn = e.target.closest('.cat-card');
+  if (!btn) return;
+  setActiveCat(btn.dataset.cat);
+});
+
+function updateSyncLabel() {
+  if (!lastSync) return;
+  syncTime.textContent = 'last update ' + vlTimeAgo(lastSync);
+}
+setInterval(updateSyncLabel, 5000);
+
+let _wsAlive = false;
+function connect(delay = 1500) {
+  const proto = location.protocol === 'https:' ? 'wss://' : 'ws://';
+  const ws = new WebSocket(proto + location.host);
+  _wsAlive = false;
+
+  ws.onopen = () => {
+    _wsAlive = true;
+    beacon.classList.add('on');
+    connText.textContent = 'Live feed connected';
+    newsStatus.textContent = 'Connected — listening for updates…';
+  };
+  ws.onclose = () => {
+    _wsAlive = false;
+    beacon.classList.remove('on');
+    connText.textContent = 'Reconnecting…';
+    newsStatus.textContent = 'Connection lost — retrying…';
+    vlWsReconnect(connect, delay, null);
+  };
+  ws.onerror = () => { ws.close(); };
+  ws.onmessage = (event) => {
+    let msg;
+    try { msg = JSON.parse(event.data); } catch(e) { return; }
+
+    if (msg.type === 'init') {
+      allItems = msg.items || [];
+      renderAll();
+      lastSync = new Date();
+      updateSyncLabel();
+      const count = allItems.filter(isVizagItem).length;
+      newsStatus.textContent = `Loaded ${count} Vizag item${count===1?'':'s'}. Listening live…`;
+    } else if (msg.type === 'news') {
+      const isNew = !allItems.find(i => i.id === msg.item.id);
+      if (isNew) {
+        allItems.unshift(msg.item);
+        allItems = allItems.slice(0, 300);
+        allItems.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
+        renderAll();
+        lastSync = new Date();
+        updateSyncLabel();
+        newsStatus.textContent = 'New update just in';
+        if (isVizagItem(msg.item)) {
+          const shortTitle = msg.item.title.length > 60 ? msg.item.title.substring(0,58)+'…' : msg.item.title;
+          vlShowToast(shortTitle);
+        }
+      }
+    } else if (msg.type === 'news_update') {
+      const existing = allItems.find(i => i.id === msg.item.id);
+      if (existing) {
+        existing.verified = msg.item.verified;
+        existing.relatedSources = msg.item.relatedSources;
+        renderAll();
+      }
+    }
+  };
+}
+connect();
+vlWsVisibilityGuard(() => _wsAlive, () => connect(1500));
+</script>
+</body>
+</html>
