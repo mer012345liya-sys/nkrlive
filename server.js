@@ -12,7 +12,7 @@ const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(__dirname));
 
 // ---------- CONFIG ----------
 const POLL_INTERVAL_MS = 12 * 1000; // poll every 12 seconds
